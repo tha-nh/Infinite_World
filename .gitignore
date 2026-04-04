@@ -1,0 +1,42 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# ENV (quan trọng)
+.env
+
+# Node / React
+node_modules/
+dist/
+build/
+
+# Java / Spring Boot
+target/
+*.log
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Flutter
+.dart_tool/
+build/
+
+# Docker
+*.tar
+
+# Logs
+logs/
+
+# File upload / cache
+uploads/
+tmp/
+
+# Thư mục local của bạn
+.sixth/
