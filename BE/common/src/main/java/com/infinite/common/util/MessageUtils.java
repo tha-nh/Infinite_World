@@ -6,11 +6,11 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class MessageUtils {
-    private final MessageSource messageSource;
+    private static MessageSource messageSource;
     public MessageUtils(MessageSource messageSource) {
         this.messageSource = messageSource;
     }
-    public String getMessage(String key, Object... args) {
+    public static String getMessage(String key, Object... args) {
         return messageSource.getMessage(
                 key,
                 args,

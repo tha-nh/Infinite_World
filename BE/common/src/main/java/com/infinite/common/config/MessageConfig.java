@@ -25,7 +25,7 @@ public class MessageConfig {
         ReloadableResourceBundleMessageSource ms = new ReloadableResourceBundleMessageSource();
         ms.setBasename("classpath:i18n/messages");
         ms.setDefaultEncoding(StandardCharsets.UTF_8.name());
-        ms.setCacheSeconds(3600);
+        ms.setCacheSeconds(-1);
         ms.setUseCodeAsDefaultMessage(false);
         return ms;
     }

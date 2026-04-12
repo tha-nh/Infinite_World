@@ -10,17 +10,22 @@
         <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
             <providers>
                 <timestamp/>
-                <loggerName/>
-                <threadName/>
-                <logLevel/>
-                <message/>
                 <pattern>
                     <pattern>{"service":"${SERVICE_NAME}"}</pattern>
                 </pattern>
                 <mdc>
                     <includeMdcKeyName>traceId</includeMdcKeyName>
                     <includeMdcKeyName>spanId</includeMdcKeyName>
+                    <includeMdcKeyName>parentSpanId</includeMdcKeyName>
+                    <includeMdcKeyName>from</includeMdcKeyName>
+                    <includeMdcKeyName>event</includeMdcKeyName>
+                    <includeMdcKeyName>method</includeMdcKeyName>
+                    <includeMdcKeyName>path</includeMdcKeyName>
                 </mdc>
+                <loggerName/>
+                <threadName/>
+                <logLevel/>
+                <message/>
                 <stackTrace/>
             </providers>
         </encoder>
