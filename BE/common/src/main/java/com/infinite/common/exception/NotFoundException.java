@@ -1,4 +1,4 @@
-package com.viettel.civil.common.exception;
+package com.infinite.common.exception;
 
 public class NotFoundException extends ExtendedRuntimeException {
 	public NotFoundException(String code, Object... var2) {

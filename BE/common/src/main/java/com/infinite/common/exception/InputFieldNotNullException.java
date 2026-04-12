@@ -1,4 +1,4 @@
-package com.viettel.civil.common.exception;
+package com.infinite.common.exception;
 
 public class InputFieldNotNullException extends ExtendedRuntimeException {
 	public static final String ERROR_CODE = "error.input_fields_cannot_be_null";

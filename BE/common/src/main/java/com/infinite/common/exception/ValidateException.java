@@ -1,5 +1,6 @@
-package com.viettel.civil.common.exception;
+package com.infinite.common.exception;
 
+import com.infinite.common.constant.StatusCode;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -9,7 +10,7 @@ import java.io.Serial;
 @EqualsAndHashCode(callSuper = true)
 public class ValidateException extends RuntimeException {
 	@Serial
-	private static final long serialVersionUID = -7161560477076500424L;
+	private static final long serialVersionUID = 123456789L;
 
 	private String mess;
 	private int errorCode = StatusCode.BAD_REQUEST_BE_TRANSLATED.getCode();

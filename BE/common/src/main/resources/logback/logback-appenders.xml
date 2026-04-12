@@ -1,16 +1,12 @@
 <included>
-
     <appender name="FILE_JSON" class="ch.qos.logback.core.rolling.RollingFileAppender">
-
         <file>${LOG_PATH}/${SERVICE_NAME}.log</file>
-
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
             <fileNamePattern>${LOG_PATH}/${SERVICE_NAME}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <maxHistory>2</maxHistory>
             <maxFileSize>50MB</maxFileSize>
             <totalSizeCap>2GB</totalSizeCap>
         </rollingPolicy>
-
         <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
             <providers>
                 <timestamp/>
@@ -18,25 +14,20 @@
                 <threadName/>
                 <logLevel/>
                 <message/>
-
                 <pattern>
                     <pattern>{"service":"${SERVICE_NAME}"}</pattern>
                 </pattern>
-
                 <mdc>
                     <includeMdcKeyName>traceId</includeMdcKeyName>
                     <includeMdcKeyName>spanId</includeMdcKeyName>
                 </mdc>
-
                 <stackTrace/>
             </providers>
         </encoder>
     </appender>
-
     <appender name="ASYNC_FILE_JSON" class="ch.qos.logback.classic.AsyncAppender">
         <appender-ref ref="FILE_JSON"/>
         <queueSize>2000</queueSize>
         <discardingThreshold>20</discardingThreshold>
     </appender>
-
 </included>

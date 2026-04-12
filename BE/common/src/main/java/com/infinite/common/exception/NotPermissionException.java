@@ -1,24 +1,15 @@
-package com.viettel.civil.common.exception;
-
-import com.viettel.civil.common.utils.MessageUtils;
-import lombok.Getter;
+package com.infinite.common.exception;
 
 public class NotPermissionException extends RuntimeException {
-	@Getter
-	private String code;
-	private String message;
 
-	public NotPermissionException() {
-	}
+    private final String code;
 
-	public NotPermissionException(String code, Object... var2) {
-		this.code = code;
-		this.message = MessageUtils.getMessage(code, var2);
-	}
+    public NotPermissionException(String code, Object... args) {
+        super(code);
+        this.code = code;
+    }
 
-	@Override
-	public String getMessage() {
-		return message;
-	}
-
+    public String getCode() {
+        return code;
+    }
 }

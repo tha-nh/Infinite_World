@@ -14,6 +14,7 @@ public enum StatusCode {
     BAD_REQUEST(1001, "BAD_REQUEST", HttpStatus.BAD_REQUEST),
     PARAM_NULL(1002, "PARAM_NULL", HttpStatus.BAD_REQUEST),
     INVALID_KEY(1003, "INVALID_KEY", HttpStatus.BAD_REQUEST),
+    BAD_REQUEST_BE_TRANSLATED(4001, "BAD_REQUEST_BE_TRANSLATED", HttpStatus.BAD_REQUEST),
 
     UNAUTHORIZED(1004, "UNAUTHORIZED", HttpStatus.UNAUTHORIZED),
     NOT_PERMIT(1005, "NOT_PERMIT", HttpStatus.FORBIDDEN),
@@ -33,12 +34,13 @@ public enum StatusCode {
     INTERNAL_ERROR(9999, "INTERNAL_ERROR", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final int code;
-    private final String messageKey;
     private final HttpStatusCode httpStatusCode;
+    private final String message;
 
-    StatusCode(int code, String messageKey, HttpStatusCode httpStatusCode) {
+    StatusCode(int code, String message, HttpStatusCode httpStatusCode) {
         this.code = code;
-        this.messageKey = messageKey;
+        this.message = message;
         this.httpStatusCode = httpStatusCode;
     }
+
 }

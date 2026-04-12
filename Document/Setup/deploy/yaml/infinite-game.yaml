@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: infinite-game
+  namespace: infinite 
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: infinite-game
+  template:
+    metadata:
+      labels:
+        app: infinite-game
+    spec:
+      containers:
+        - name: infinite-game
+          image: infinite-game:latest
+          ports:
+            - containerPort: 8082
+          envFrom:
+            - configMapRef:
+                name: infinite-env
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: infinite-game
+  namespace: infinite 
+spec:
+  type: ClusterIP
+  selector:
+    app: infinite-game
+  ports:
+    - port: 8082
+      targetPort: 8082

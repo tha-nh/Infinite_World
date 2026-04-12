@@ -1,53 +1,17 @@
 services:
 
-  ecax-gateway:
+  infinite-game:
     build:
       context: .
-      dockerfile: gateway/Dockerfile
-    image: ecax-gateway:latest
+      dockerfile: game-service/Dockerfile
+    image: infinite-game:latest
     env_file:
-      - .env
+      - .env.properties
     ports:
-      - "8080:8080"
+      - "8082:8082"
     networks:
-      - ecax-net
-
-  ecax-id:
-    build:
-      context: .
-      dockerfile: authentication/Dockerfile
-    image: ecax-id:latest
-    env_file:
-      - .env
-    ports:
-      - "7001:7001"
-    networks:
-      - ecax-net
-
-  ecax-author:
-    build:
-      context: .
-      dockerfile: authorization/Dockerfile
-    image: ecax-author:latest
-    env_file:
-      - .env
-    ports:
-      - "7002:7002"
-    networks:
-      - ecax-net
-
-  ecax-category:
-    build:
-      context: .
-      dockerfile: category/Dockerfile
-    image: ecax-category:latest
-    env_file:
-      - .env
-    ports:
-      - "7071:7071"
-    networks:
-      - ecax-net
+      - infinite-net
 
 networks:
-  ecax-net:
+  infinite-net:
     external: true

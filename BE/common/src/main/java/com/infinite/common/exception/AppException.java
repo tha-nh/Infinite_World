@@ -1,5 +1,6 @@
-package com.viettel.civil.common.exception;
+package com.infinite.common.exception;
 
+import com.infinite.common.constant.StatusCode;
 import lombok.Getter;
 import lombok.Setter;
 

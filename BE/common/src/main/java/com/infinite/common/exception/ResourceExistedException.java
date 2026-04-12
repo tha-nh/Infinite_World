@@ -1,4 +1,4 @@
-package com.viettel.civil.common.exception;
+package com.infinite.common.exception;
 
 public class ResourceExistedException extends ExtendedRuntimeException {
 	public ResourceExistedException(String code, Object... var2) {
