@@ -1,0 +1,53 @@
+services:
+
+  ecax-gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    image: ecax-gateway:latest
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    networks:
+      - ecax-net
+
+  ecax-id:
+    build:
+      context: .
+      dockerfile: authentication/Dockerfile
+    image: ecax-id:latest
+    env_file:
+      - .env
+    ports:
+      - "7001:7001"
+    networks:
+      - ecax-net
+
+  ecax-author:
+    build:
+      context: .
+      dockerfile: authorization/Dockerfile
+    image: ecax-author:latest
+    env_file:
+      - .env
+    ports:
+      - "7002:7002"
+    networks:
+      - ecax-net
+
+  ecax-category:
+    build:
+      context: .
+      dockerfile: category/Dockerfile
+    image: ecax-category:latest
+    env_file:
+      - .env
+    ports:
+      - "7071:7071"
+    networks:
+      - ecax-net
+
+networks:
+  ecax-net:
+    external: true

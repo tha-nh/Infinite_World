@@ -1,5 +1,0 @@
-org.springframework.test.context.ContextCustomizerFactory = \
-    com.infinite.user.config.\
-    SqlTestContainersSpringContextCustomizerFactory,com.infinite.user.config.\
-    TestContainersSpringContextCustomizerFactory,com.infinite.user.config.\
-    RedisTestContainersSpringContextCustomizerFactory

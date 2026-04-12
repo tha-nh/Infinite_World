@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<included>
+
+    <!-- Các property chung -->
+    <property name="SERVICE_NAME" value="unknown-service"/>
+    <property name="LOG_PATH" value="logs"/>
+
+    <!-- Spring Property để lấy level từ application.yml -->
+    <springProperty name="log.level" source="logging.level.root" defaultValue="INFO"/>
+
+    <!-- Import patterns và appenders -->
+    <include resource="logback-patterns.xml"/>
+    <include resource="logback-appenders.xml"/>
+
+    <!-- ==================== PHẦN DEV / PROD ==================== -->
+    <springProfile name="dev">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+            </encoder>
+        </appender>
+
+        <root level="${log.level}">
+            <appender-ref ref="ASYNC_FILE_JSON"/>
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="prod">
+        <root level="${log.level}">
+            <appender-ref ref="ASYNC_FILE_JSON"/>
+        </root>
+    </springProfile>
+
+</included>

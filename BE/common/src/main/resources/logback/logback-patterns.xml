@@ -1,0 +1,15 @@
+<included>
+
+    <conversionRule conversionWord="trace"
+                    class="util.com.infinite.common.util.TraceIdConverter"/>
+
+    <property name="CONSOLE_LOG_PATTERN"
+              value="%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint}
+                     %clr(%5p)
+                     %clr(${PID:- }){magenta}
+                     %clr(%trace){yellow}
+                     %clr(%-40.40logger{39}){cyan}
+                     %clr(:){faint}
+                     %m%n%wEx"/>
+
+</included>
