@@ -44,7 +44,7 @@ public class AuthServiceImpl implements AuthService {
 
         return ApiResponse.builder()
                 .code(StatusCode.SUCCESS.getCode())
-                .message(message(SUCCESS))
+                .message(message("auth.login.success"))
                 .result(response)
                 .build();
     }

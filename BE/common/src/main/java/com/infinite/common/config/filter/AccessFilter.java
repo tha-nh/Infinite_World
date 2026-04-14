@@ -154,7 +154,7 @@ public class AccessFilter extends OncePerRequestFilter {
     private String buildRequestLogMessage() {
         String source = MDC.get(FROM);
         if (!StringUtils.hasText(source)) {
-            return "incoming request";
+            return "API Request";
         }
         return source + " call to " + SERVICE_NAME;
     }
@@ -260,12 +260,17 @@ public class AccessFilter extends OncePerRequestFilter {
     }
 
     private String resolveResponseEncoding(ContentCachingResponseWrapper response) {
+        String contentType = response.getContentType();
+        if (isJsonContentType(contentType)) {
+            return StandardCharsets.UTF_8.name();
+        }
+
         String encoding = response.getCharacterEncoding();
-        if (StringUtils.hasText(encoding)) {
+        if (StringUtils.hasText(encoding)
+                && !StandardCharsets.ISO_8859_1.name().equalsIgnoreCase(encoding)) {
             return encoding;
         }
 
-        String contentType = response.getContentType();
         if (StringUtils.hasText(contentType) && contentType.toLowerCase().contains("charset=utf-8")) {
             return StandardCharsets.UTF_8.name();
         }
