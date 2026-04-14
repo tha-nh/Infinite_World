@@ -37,7 +37,7 @@ public class AuthorizationFilter
         return (exchange, chain) -> {
             List<String> auths = config.getAuth();
             List<String> roles = config.getRoles();
-            if (auths.contains("public") || auths.contains("publish")) {
+            if (auths.contains("public")) {
                 return chain.filter(exchange);
             }
             if (auths.contains("authn")) {

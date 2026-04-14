@@ -2,6 +2,7 @@ package com.infinite.user.controller.rest;
 
 import com.infinite.common.dto.request.SearchRequest;
 import com.infinite.common.dto.response.ApiResponse;
+import com.infinite.user.dto.request.ChangePasswordRequest;
 import com.infinite.user.dto.request.UserRequest;
 import com.infinite.user.service.UserService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -36,6 +37,11 @@ public class UserController {
     @PostMapping("/update")
     public ApiResponse<Object> update(@RequestBody UserRequest request){
         return userService.update(request);
+    }
+
+    @PostMapping("/change-password")
+    public ApiResponse<Object> changePassword(@RequestBody ChangePasswordRequest request){
+        return userService.changePassword(request);
     }
 
 }

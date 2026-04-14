@@ -10,7 +10,7 @@ public class TraceIdConverter extends ClassicConverter {
         String trace = MDC.get("traceId");
         String span = MDC.get("spanId");
         if ((trace == null || trace.isEmpty()) && (span == null || span.isEmpty())) {
-            return ""; // bỏ hoàn toàn nếu rỗng
+            return "";
         }
         return "[" + trace + "," + span + "]";
     }

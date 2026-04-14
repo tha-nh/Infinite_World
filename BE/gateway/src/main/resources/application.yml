@@ -40,15 +40,19 @@ gateway:
     - id: authen
       uri: ${USER_SERVICE}
       predicates:
-        - Path=/v1/api/auth/**
+        - Path=[
+            "/v1/api/auth/**"
+          ]
         - Method=GET,POST,PUT,DELETE,OPTIONS
       filters:
-        - Authorization=publish
+        - Authorization=public
 
     - id: user
       uri: ${USER_SERVICE}
       predicates:
-        - Path=/v1/api/user/**
+        - Path=[
+            "/v1/api/user/**"
+          ]
         - Method=GET,POST,PUT,DELETE,OPTIONS
       filters:
         - Authorization=authn
@@ -56,7 +60,9 @@ gateway:
     - id: admin
       uri: ${USER_SERVICE}
       predicates:
-        - Path=/v1/api/admin/**
+        - Path=[
+            "/v1/api/admin/**"
+          ]
         - Method=GET,POST,PUT,DELETE,OPTIONS
       filters:
         - Authorization=authz
