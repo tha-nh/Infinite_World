@@ -23,7 +23,6 @@ import static com.infinite.common.dto.response.Response.message;
 @Service
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @RequiredArgsConstructor
-@Slf4j
 public class I18nPropertiesLoaderServiceImpl implements I18nPropertiesLoaderService {
 
     final I18nService i18nService;
@@ -31,15 +30,6 @@ public class I18nPropertiesLoaderServiceImpl implements I18nPropertiesLoaderServ
     @Value("${i18n.properties-file:/i18n/messages}")
     private String propertiesFilePath;
 
-    /**
-     * Load messages from language-specific properties file
-     * Format: key.key.key=message
-     * Example: user.profile.name=Name
-     * 
-     * File naming: messages_{language}.properties
-     * - messages_en.properties for English
-     * - messages_vi.properties for Vietnamese
-     */
     @Override
     public ApiResponse<Object> loadPropertiesFile(String language) {
         int count = 0;
@@ -47,11 +37,9 @@ public class I18nPropertiesLoaderServiceImpl implements I18nPropertiesLoaderServ
         try {
             Properties properties = new Properties();
             
-            // Construct file path: /i18n/messages_{language}.properties
             String filePathWithLanguage = String.format("%s_%s.properties", 
                 propertiesFilePath, language);
             
-            log.info("Loading properties from: {}", filePathWithLanguage);
             
             ClassPathResource resource = new ClassPathResource(filePathWithLanguage);
             
@@ -65,7 +53,6 @@ public class I18nPropertiesLoaderServiceImpl implements I18nPropertiesLoaderServ
                 String key = (String) keyObj;
                 String messageValue = properties.getProperty(key);
                 
-                // Skip comments and empty lines
                 if (key.startsWith("#") || messageValue == null || messageValue.trim().isEmpty()) {
                     continue;
                 }
@@ -82,7 +69,7 @@ public class I18nPropertiesLoaderServiceImpl implements I18nPropertiesLoaderServ
                 }
             }
             
-            log.info("Loaded {} messages from properties file for language: {}", count, language);
+
             
             return ApiResponse.builder()
                     .code(code(StatusCode.SUCCESS))
@@ -90,7 +77,6 @@ public class I18nPropertiesLoaderServiceImpl implements I18nPropertiesLoaderServ
                     .result(String.format("Loaded %d messages for language: %s", count, language))
                     .build();
         } catch (Exception e) {
-            log.error("Error loading properties file for language: {}", language, e);
             return ApiResponse.builder()
                     .code(code(StatusCode.BAD_REQUEST))
                     .message("Error loading from properties: " + e.getMessage())

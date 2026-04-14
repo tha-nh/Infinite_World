@@ -16,15 +16,10 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping(path = "v1/api/i18n", produces = MediaType.APPLICATION_JSON_VALUE)
 @RequiredArgsConstructor(access = AccessLevel.PACKAGE)
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-@Tag(name = "i18n", description = "Internationalization Messages")
 public class I18nController {
     I18nService i18nService;
     I18nPropertiesLoaderService propertiesLoaderService;
 
-    /**
-     * Create or update message via API
-     * POST /v1/api/i18n/message?language=en
-     */
     @PostMapping("/message")
     public ApiResponse<Object> createMessage(
             @RequestParam String language,
@@ -38,10 +33,6 @@ public class I18nController {
         return i18nService.saveMessage(language, message);
     }
 
-    /**
-     * Delete message (soft delete)
-     * DELETE /v1/api/i18n/message?language=en&key=user.profile.name
-     */
     @DeleteMapping("/message")
     public ApiResponse<Object> deleteMessage(
             @RequestParam String language,
@@ -49,20 +40,12 @@ public class I18nController {
         return i18nService.deleteMessage(language, key);
     }
 
-    /**
-     * Load messages from properties file to database
-     * POST /v1/api/i18n/load-from-properties?language=en
-     */
     @PostMapping("/load-from-properties")
     public ApiResponse<Object> loadFromProperties(
             @RequestParam String language) {
         return propertiesLoaderService.loadPropertiesFile(language);
     }
 
-    /**
-     * Refresh Redis cache from database
-     * POST /v1/api/i18n/refresh-cache
-     */
     @PostMapping("/refresh-cache")
     public ApiResponse<Object> refreshCache() {
         return i18nService.refreshCache();

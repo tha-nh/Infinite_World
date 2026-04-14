@@ -14,8 +14,8 @@ import lombok.NoArgsConstructor;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class I18nMessageRequest {
     @NotBlank(message = "Message key is required")
-    private String key;      // e.g., "user.profile.name"
+    private String key;
     
     @NotBlank(message = "Message is required")
-    private String message;  // The translated message
+    private String message;
 }
