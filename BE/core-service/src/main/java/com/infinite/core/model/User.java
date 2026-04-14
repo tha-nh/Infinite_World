@@ -1,4 +1,4 @@
-package com.infinite.user.model;
+package com.infinite.core.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.infinite.common.util.Constants;

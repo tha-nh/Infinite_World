@@ -1,4 +1,4 @@
-package com.infinite.user.model;
+package com.infinite.core.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

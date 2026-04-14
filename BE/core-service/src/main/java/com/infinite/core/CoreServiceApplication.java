@@ -1,4 +1,4 @@
-package com.infinite.user;
+package com.infinite.core;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -12,13 +12,13 @@ import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Optional;
 
-@SpringBootApplication(scanBasePackages = {"com.infinite.common", "com.infinite.user"})
-public class UserServiceApplication {
+@SpringBootApplication(scanBasePackages = {"com.infinite.common", "com.infinite.core"})
+public class CoreServiceApplication {
 
-    private static final Logger log = LoggerFactory.getLogger(UserServiceApplication.class);
+    private static final Logger log = LoggerFactory.getLogger(CoreServiceApplication.class);
 
     public static void main(String[] args) {
-        SpringApplication app = new SpringApplication(UserServiceApplication.class);
+        SpringApplication app = new SpringApplication(CoreServiceApplication.class);
         Environment env = app.run(args).getEnvironment();
         logApplicationStartup(env);
     }

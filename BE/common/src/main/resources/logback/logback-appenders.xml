@@ -1,6 +1,7 @@
 <included>
     <appender name="FILE_JSON" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_PATH}/${SERVICE_NAME}.log</file>
+        <immediateFlush>true</immediateFlush>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
             <fileNamePattern>${LOG_PATH}/${SERVICE_NAME}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <maxHistory>2</maxHistory>
@@ -15,6 +16,8 @@
                     <pattern>{"service":"${SERVICE_NAME}"}</pattern>
                 </pattern>
                 <mdc>
+                    <includeMdcKeyName>status</includeMdcKeyName>
+                    <includeMdcKeyName>durationMs</includeMdcKeyName>
                     <includeMdcKeyName>traceId</includeMdcKeyName>
                     <includeMdcKeyName>spanId</includeMdcKeyName>
                     <includeMdcKeyName>parentSpanId</includeMdcKeyName>
@@ -22,18 +25,23 @@
                     <includeMdcKeyName>event</includeMdcKeyName>
                     <includeMdcKeyName>method</includeMdcKeyName>
                     <includeMdcKeyName>path</includeMdcKeyName>
+                    <includeMdcKeyName>process</includeMdcKeyName>
+<!--                    <includeMdcKeyName>headers</includeMdcKeyName>-->
+<!--                    <includeMdcKeyName>params</includeMdcKeyName>-->
+<!--                    <includeMdcKeyName>body</includeMdcKeyName>-->
                 </mdc>
-                <loggerName/>
-                <threadName/>
+<!--                <loggerName/>-->
+<!--                <threadName/>-->
                 <logLevel/>
                 <message/>
                 <stackTrace/>
             </providers>
         </encoder>
     </appender>
-    <appender name="ASYNC_FILE_JSON" class="ch.qos.logback.classic.AsyncAppender">
+    <appender name="ROLLING_FILE" class="ch.qos.logback.classic.AsyncAppender">
         <appender-ref ref="FILE_JSON"/>
         <queueSize>2000</queueSize>
-        <discardingThreshold>20</discardingThreshold>
+        <discardingThreshold>0</discardingThreshold>
+        <neverBlock>false</neverBlock>
     </appender>
 </included>

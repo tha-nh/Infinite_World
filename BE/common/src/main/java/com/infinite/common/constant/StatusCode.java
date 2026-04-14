@@ -20,7 +20,7 @@ public enum StatusCode {
     DATA_NOT_EXISTED(1006, "DATA_NOT_EXISTED", HttpStatus.NOT_FOUND),
     DATA_EXISTED(1007, "DATA_EXISTED", HttpStatus.CONFLICT),
     DUPLICATE(1008, "DUPLICATE", HttpStatus.CONFLICT),
-
+    LOCKED(1009, "LOCKED", HttpStatus.LOCKED),
     // ================= FILE =================
     FILE_NOT_EXISTED(2001, "FILE_NOT_EXISTED", HttpStatus.NOT_FOUND),
     FILE_NOT_READ(2002, "FILE_NOT_READ", HttpStatus.BAD_REQUEST),

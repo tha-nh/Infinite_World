@@ -1,7 +1,9 @@
 package com.infinite.user.util;
 
+import com.infinite.common.util.Constants;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
@@ -12,14 +14,14 @@ import java.util.Date;
 @Component
 public class JwtUtil {
 
-    private final String jwtSecret = "secretKey123secretKey123secretKey123"; // >= 32 chars
-    private final long jwtExpirationMs = 86400000;
+    private @Value("${secret.key}") String jwtSecret;
 
     private Key getSigningKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }
 
     public String generateToken(String username) {
+        long jwtExpirationMs = 86400000;
         return Jwts.builder()
                 .setSubject(username)
                 .setIssuedAt(new Date())

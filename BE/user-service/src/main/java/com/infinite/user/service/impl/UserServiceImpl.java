@@ -5,8 +5,6 @@ import com.infinite.common.dto.request.SearchRequest;
 import com.infinite.common.dto.response.ApiResponse;
 import com.infinite.common.dto.response.PageResponse;
 import com.infinite.common.exception.AppException;
-import com.infinite.common.util.I18n;
-import com.infinite.common.util.MessageUtils;
 import com.infinite.user.dto.request.UserRequest;
 import com.infinite.user.dto.response.UserDto;
 import com.infinite.user.repository.UserRepository;
@@ -26,7 +24,7 @@ import static com.infinite.common.dto.response.Response.message;
 
 @Service
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
+@RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
     UserRepository userRepository;
@@ -44,6 +42,29 @@ public class UserServiceImpl implements UserService {
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setName(request.getName());
         user.setEmail(request.getEmail());
+        user.setCreateBy(request.getNguoithuchien());
+        user.setActive(0);
+
+        userRepository.save(user);
+        return ApiResponse.builder()
+                .code(code(SUCCESS))
+                .message(message(SUCCESS))
+                .build();
+    }
+
+    @Override
+    public ApiResponse<Object> update(UserRequest request) {
+        ApiResponse<Object> checkRes = performChecks(request);
+        if (checkRes != null) {
+            return checkRes;
+        }
+        User user = userRepository.findById(request.getId())
+                        .orElseThrow(() -> new AppException(StatusCode.DATA_EXISTED));
+        user.setUsername(request.getUsername());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setName(request.getName());
+        user.setEmail(request.getEmail());
+        user.setModifiedBy(request.getNguoithuchien());
         user.setActive(0);
 
         userRepository.save(user);
@@ -71,19 +92,10 @@ public class UserServiceImpl implements UserService {
     }
 
     private ApiResponse<Object> performChecks(UserRequest request) {
-
         ApiResponse<Object> response;
-
-        if (userRepository.existsByUsername(request.getId(), request.getUsername())) {
-            response = existResponse(I18n.msg("auth.username.exist"));
-        }
-        else if (userRepository.existsByEmail(request.getId(), request.getEmail())) {
-            response = existResponse(I18n.msg("auth.email.exist"));
-        }
-        else {
-            response = null;
-        }
-
+        if (userRepository.existsByUsername(request.getId(), request.getUsername())) {response = existResponse(message("auth.username.exist"));}
+        else if (userRepository.existsByEmail(request.getId(), request.getEmail())) {response = existResponse(message("auth.email.exist"));}
+        else {response = null;}
         return response;
     }
 

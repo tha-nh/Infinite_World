@@ -5,19 +5,19 @@
     <include resource="logback/logback-patterns.xml"/>
     <include resource="logback/logback-appenders.xml"/>
     <springProfile name="dev">
-        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <appender name="CONSOLE_LOG" class="ch.qos.logback.core.ConsoleAppender">
             <encoder>
                 <pattern>${CONSOLE_LOG_PATTERN}</pattern>
             </encoder>
         </appender>
         <root level="${log.level}">
-            <appender-ref ref="ASYNC_FILE_JSON"/>
-            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ROLLING_FILE"/>
+            <appender-ref ref="CONSOLE_LOG"/>
         </root>
     </springProfile>
     <springProfile name="prod">
         <root level="${log.level}">
-            <appender-ref ref="ASYNC_FILE_JSON"/>
+            <appender-ref ref="ROLLING_FILE"/>
         </root>
     </springProfile>
 </included>

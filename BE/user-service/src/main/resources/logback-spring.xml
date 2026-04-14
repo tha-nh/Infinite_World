@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration scan="true">
-    <property name="SERVICE_NAME" value="user-service"/>
+    <springProperty scope="context" name="SERVICE_NAME" source="spring.application.name"/>
+    <logger name="org.springframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver" level="OFF"/>
     <include resource="logback/logback-base.xml"/>
 </configuration>

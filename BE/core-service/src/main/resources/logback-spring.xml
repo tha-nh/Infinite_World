@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<configuration scan="true">
-    <property name="SERVICE_NAME" value="user-service"/>
-    <include resource="logback/logback-base.xml"/>
-</configuration>

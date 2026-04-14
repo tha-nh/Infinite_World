@@ -1,8 +1,8 @@
 package com.infinite.user.controller.rest;
 
 import com.infinite.common.dto.response.ApiResponse;
-import com.infinite.user.dto.request.UserRequest;
-import com.infinite.user.service.UserService;
+import com.infinite.user.dto.request.LoginRequest;
+import com.infinite.user.service.AuthService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -19,11 +19,10 @@ import org.springframework.web.bind.annotation.RestController;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @Tag(name = "authen", description = "Chức năng login, logout")
 public class AuthController {
-    UserService userService;
+    AuthService authService;
 
-    @PostMapping("/add")
-    public ApiResponse<Object> create(@RequestBody UserRequest request){
-        return userService.create(request);
+    @PostMapping("/login")
+    public ApiResponse<Object> login(@RequestBody LoginRequest request){
+        return authService.login(request);
     }
-
 }

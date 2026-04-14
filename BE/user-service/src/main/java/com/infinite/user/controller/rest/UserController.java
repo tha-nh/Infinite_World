@@ -2,6 +2,7 @@ package com.infinite.user.controller.rest;
 
 import com.infinite.common.dto.request.SearchRequest;
 import com.infinite.common.dto.response.ApiResponse;
+import com.infinite.user.dto.request.UserRequest;
 import com.infinite.user.service.UserService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AccessLevel;
@@ -26,4 +27,15 @@ public class UserController {
     public ApiResponse<Object> search(@RequestBody SearchRequest request, Pageable pageable){
         return userService.searchUsers(request, pageable);
     }
+
+    @PostMapping("/create")
+    public ApiResponse<Object> create(@RequestBody UserRequest request){
+        return userService.create(request);
+    }
+
+    @PostMapping("/update")
+    public ApiResponse<Object> update(@RequestBody UserRequest request){
+        return userService.update(request);
+    }
+
 }

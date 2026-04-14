@@ -7,6 +7,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class AppException extends RuntimeException {
+    private Object result;
 	public AppException(StatusCode statusCode) {
 		super(statusCode.getMessage());
 		this.statusCode = statusCode;
@@ -16,6 +17,17 @@ public class AppException extends RuntimeException {
 		super(mess);
 		this.statusCode = statusCode;
 	}
+
+    public AppException(int code, String mess) {
+        super(mess);
+        this.statusCode = statusCode;
+    }
+
+    public AppException(StatusCode statusCode, Object result) {
+        super(statusCode.getMessage());
+        this.statusCode = statusCode;
+        this.result = result;
+    }
 
 	private StatusCode statusCode;
 }

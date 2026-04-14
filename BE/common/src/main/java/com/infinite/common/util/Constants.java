@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 public class Constants {
     public static String SERVICE_NAME;
 
-    @Value("${spring.application.name:unknown-service}")
+    @Value("${spring.application.name}")
     public void setServiceName(String serviceName) {
         Constants.SERVICE_NAME = serviceName;
     }

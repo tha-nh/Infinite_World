@@ -13,4 +13,6 @@ public class UserRequest {
     String password;
     String name;
     String email;
+    String imageUrl;
+    String nguoithuchien;
 }

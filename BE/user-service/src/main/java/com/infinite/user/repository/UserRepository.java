@@ -15,6 +15,14 @@ import java.util.Optional;
 public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("""
+    SELECT u
+    FROM User u
+    WHERE u.username = :username
+      AND u.isDelete = false
+""")
+    Optional<User> login(@Param("username") String username);
+
+    @Query("""
     SELECT new com.infinite.user.dto.response.UserDto(
         u.id,
         u.username,
