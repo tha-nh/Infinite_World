@@ -1,6 +1,5 @@
 package com.infinite.user.util;
 
-import com.infinite.common.util.Constants;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,13 +14,13 @@ import java.util.Date;
 public class JwtUtil {
 
     private @Value("${secret.key}") String jwtSecret;
+    private @Value("${jwt.expiration.ms}") long jwtExpirationMs;
 
     private Key getSigningKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }
 
     public String generateToken(String username) {
-        long jwtExpirationMs = 86400000;
         return Jwts.builder()
                 .setSubject(username)
                 .setIssuedAt(new Date())
