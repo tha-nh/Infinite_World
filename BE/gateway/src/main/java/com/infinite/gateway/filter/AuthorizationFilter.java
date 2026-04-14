@@ -21,8 +21,7 @@ public class AuthorizationFilter
 
     public AuthorizationFilter(
             AuthnFilter authnFilter,
-            AuthzFilter authzFilter
-    ) {
+            AuthzFilter authzFilter) {
         super(AuthorizationConfig.class);
         this.authnFilter = authnFilter;
         this.authzFilter = authzFilter;
@@ -38,13 +37,12 @@ public class AuthorizationFilter
         return (exchange, chain) -> {
             List<String> auths = config.getAuth();
             List<String> roles = config.getRoles();
-            if (auths.contains("public")) {
+            if (auths.contains("public") || auths.contains("publish")) {
                 return chain.filter(exchange);
             }
             if (auths.contains("authn")) {
                 if (!authnFilter.apply(exchange)) {
-                    exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-                    return exchange.getResponse().setComplete();
+                    return authnFilter.writeUnauthorizedResponse(exchange);
                 }
             }
             if (auths.contains("authz")) {

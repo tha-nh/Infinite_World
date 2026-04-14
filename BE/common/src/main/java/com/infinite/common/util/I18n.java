@@ -50,6 +50,8 @@ public class I18n {
                 || value.contains("Â")
                 || value.contains("Ä")
                 || value.contains("áº")
-                || value.contains("á»");
+                || value.contains("á»")
+                || value.contains("?")
+                || value.contains("�");
     }
 }
