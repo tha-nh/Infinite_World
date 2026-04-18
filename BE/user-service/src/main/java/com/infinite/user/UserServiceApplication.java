@@ -1,10 +1,10 @@
 package com.infinite.user;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.core.env.Environment;
 
 import java.net.InetAddress;
@@ -12,11 +12,10 @@ import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Optional;
 
+@Slf4j
+@EnableAspectJAutoProxy
 @SpringBootApplication(scanBasePackages = {"com.infinite.common", "com.infinite.user"})
 public class UserServiceApplication {
-
-    private static final Logger log = LoggerFactory.getLogger(UserServiceApplication.class);
-
     public static void main(String[] args) {
         SpringApplication app = new SpringApplication(UserServiceApplication.class);
         Environment env = app.run(args).getEnvironment();

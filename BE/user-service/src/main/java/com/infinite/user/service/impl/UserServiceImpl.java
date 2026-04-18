@@ -18,6 +18,7 @@ import com.infinite.user.util.JwtUtil;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -31,6 +32,7 @@ import static com.infinite.common.constant.StatusCode.UNAUTHORIZED;
 import static com.infinite.common.dto.response.Response.code;
 import static com.infinite.common.dto.response.Response.message;
 
+@Slf4j
 @Service
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @RequiredArgsConstructor
@@ -53,7 +55,7 @@ public class UserServiceImpl implements UserService {
                 .name(user.getName())
                 .email(user.getEmail())
                 .build();
-
+        log.warn("login response: {}", response);
         return ApiResponse.builder()
                 .code(StatusCode.SUCCESS.getCode())
                 .message(message("auth.login.success"))

@@ -63,8 +63,19 @@ public class AccessFilter extends OncePerRequestFilter {
         putIfHasText(FROM, request.getHeader(FROM_HEADER));
 
         putRequestPayloadToMdc(wrappedRequest);
+        
+        // Temporarily set event="request" for request log only
+        String originalEvent = MDC.get(EVENT);
         MDC.put(EVENT, "request");
         log.info(buildRequestLogMessage());
+        
+        // Restore original event (should be "debug" from DebugEventFilter)
+        if (originalEvent != null) {
+            MDC.put(EVENT, originalEvent);
+        } else {
+            MDC.remove(EVENT);
+        }
+        
         clearRequestPayloadMdc();
 
         try {
@@ -72,6 +83,8 @@ public class AccessFilter extends OncePerRequestFilter {
         } finally {
             long durationMs = System.currentTimeMillis() - startTime;
 
+            // Temporarily set event="response" for response log only
+            String currentEvent = MDC.get(EVENT);
             MDC.put(EVENT, "response");
             MDC.put(DURATION_MS, String.valueOf(durationMs));
             logResponse(wrappedRequest, wrappedResponse);

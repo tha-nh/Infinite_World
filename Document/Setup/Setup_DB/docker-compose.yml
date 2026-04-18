@@ -4,9 +4,9 @@ services:
     container_name: postgres-db
     # restart: always
     environment:
-      POSTGRES_DB: infinite_db
-      POSTGRES_USER: root
-      POSTGRES_PASSWORD: 123456
+      POSTGRES_DB: infinite_world
+      POSTGRES_USER: infinite
+      POSTGRES_PASSWORD: infinite@123
     ports:
       - "5432:5432"
     volumes:
@@ -19,7 +19,7 @@ services:
     ports:
       - "6379:6379"
     command: >
-      sh -c "redis-server --appendonly yes --requirepass 123456"
+      sh -c "redis-server --appendonly yes --requirepass infinite@123"
     volumes:
       - redis_data:/data
 
