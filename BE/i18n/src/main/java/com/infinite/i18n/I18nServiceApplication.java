@@ -12,7 +12,7 @@ import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Optional;
 
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = {"com.infinite.i18n", "com.infinite.common"})
 public class I18nServiceApplication {
 
     private static final Logger log = LoggerFactory.getLogger(I18nServiceApplication.class);

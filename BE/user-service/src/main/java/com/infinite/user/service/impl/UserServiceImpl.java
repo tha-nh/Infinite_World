@@ -7,9 +7,9 @@ import com.infinite.common.dto.response.PageResponse;
 import com.infinite.common.exception.AppException;
 import com.infinite.common.constant.OtpConstant;
 import com.infinite.common.service.OtpService;
-import com.infinite.notification.service.EmailService;
-import com.infinite.notification.service.SmsService;
-import com.infinite.notification.service.WebSocketNotificationService;
+import com.infinite.common.dto.event.EmailNotificationEvent;
+import com.infinite.common.dto.event.SmsNotificationEvent;
+import com.infinite.common.dto.event.WebSocketNotificationEvent;
 import com.infinite.user.client.FileClient;
 import com.infinite.user.dto.request.*;
 import com.infinite.user.dto.response.LoginResponse;
@@ -19,12 +19,14 @@ import com.infinite.user.model.User;
 import com.infinite.user.model.Role;
 import com.infinite.user.service.RoleService;
 import com.infinite.user.service.UserService;
+import com.infinite.user.service.NotificationPublisher;
 import com.infinite.user.util.Contant;
 import com.infinite.user.util.JwtUtil;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -33,8 +35,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import static com.infinite.common.constant.StatusCode.SUCCESS;
@@ -53,9 +57,7 @@ public class UserServiceImpl implements UserService {
     final PasswordEncoder passwordEncoder;
     final JwtUtil jwtUtil;
     final OtpService otpService;
-    final EmailService emailService;
-    final SmsService smsService;
-    final WebSocketNotificationService webSocketService;
+    final NotificationPublisher notificationPublisher;
     final FileClient fileClient;
 
     @org.springframework.beans.factory.annotation.Value("${app.base.url}")
@@ -78,6 +80,8 @@ public class UserServiceImpl implements UserService {
                 .username(user.getUsername())
                 .name(user.getName())
                 .email(user.getEmail())
+                .phoneNumber(user.getPhoneNumber())
+                .imageUrl(user.getImageUrl())
                 .roles(roleNames)
                 .build();
 
@@ -151,7 +155,13 @@ public class UserServiceImpl implements UserService {
         String otpKey = otpService.generateForgotPasswordOtpKey(request.getEmail());
         otpService.storeOtp(otpKey, otp, 5, TimeUnit.MINUTES);
 
-        emailService.sendOtpEmail(request.getEmail(), otp, "forgot_password");
+        // Send OTP via Kafka
+        notificationPublisher.sendOtpEmail(
+                request.getEmail(),
+                user.getId().toString(),
+                otp,
+                "forgot_password"
+        );
 
         return ApiResponse.builder()
                 .code(code(SUCCESS))
@@ -168,7 +178,13 @@ public class UserServiceImpl implements UserService {
         String otpKey = "forgot_password_otp_sms:" + request.getPhoneNumber();
         otpService.storeOtp(otpKey, otp, 5, TimeUnit.MINUTES);
 
-        smsService.sendOtpSms(request.getPhoneNumber(), otp, "forgot_password");
+        // Send OTP via Kafka
+        notificationPublisher.sendOtpSms(
+                request.getPhoneNumber(),
+                user.getId().toString(),
+                otp,
+                "forgot_password"
+        );
 
         return ApiResponse.builder()
                 .code(code(SUCCESS))
@@ -268,9 +284,9 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public String verifyEmailHtml(VerifyEmailRequest request) {
-        org.springframework.context.i18n.LocaleContextHolder.setLocale(
-                "vi".equals(request.getLang()) ? java.util.Locale.forLanguageTag("vi") : java.util.Locale.ENGLISH
-        );
+        // Set locale from request parameter
+        Locale locale = Locale.forLanguageTag(request.getLang() != null ? request.getLang() : "vi");
+        LocaleContextHolder.setLocale(locale);
 
         try {
             String email = otpService.getOtp("email_verification_token:" + request.getToken());
@@ -310,14 +326,13 @@ public class UserServiceImpl implements UserService {
             }
         } catch (Exception e) {
             return buildResultHtml(false, message("INTERNAL_ERROR"), request.getLang());
+        } finally {
+            LocaleContextHolder.resetLocaleContext();
         }
     }
 
     private String buildResultHtml(boolean success, String message, String lang) {
-        org.springframework.context.i18n.LocaleContextHolder.setLocale(
-                "vi".equals(lang) ? java.util.Locale.forLanguageTag("vi") : java.util.Locale.ENGLISH
-        );
-
+        // Locale already set by caller, no need to set again
         String title = success ?
                 message("email.verification.result.success.title") :
                 message("email.verification.result.error.title");
@@ -395,40 +410,6 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public ApiResponse<Object> registerWithVerification(RegistrationRequest request) {
-        ApiResponse<Object> checkRes = performChecksForRegistration(request);
-        if (checkRes != null) {
-            return checkRes;
-        }
-
-        String otp = otpService.generateOtp();
-        String otpKey;
-
-        if ("sms".equals(request.getVerificationMethod())) {
-            otpKey = "registration_otp_sms:" + request.getPhoneNumber();
-            otpService.storeOtp(otpKey, otp, OtpConstant.REGISTRATION_OTP_EXPIRATION_MINUTES, TimeUnit.MINUTES);
-            smsService.sendOtpSms(request.getPhoneNumber(), otp, "registration");
-        } else {
-            otpKey = "registration_otp_email:" + request.getEmail();
-            otpService.storeOtp(otpKey, otp, OtpConstant.REGISTRATION_OTP_EXPIRATION_MINUTES, TimeUnit.MINUTES);
-            emailService.sendOtpEmail(request.getEmail(), otp, "registration");
-        }
-
-        // Store registration data temporarily
-        String tempKey = "temp_registration:" + otp;
-        otpService.storeOtp(tempKey,
-                String.format("%s|%s|%s|%s|%s|%s",
-                        request.getUsername(), request.getPassword(), request.getName(),
-                        request.getEmail(), request.getPhoneNumber(), request.getNguoithuchien()),
-                OtpConstant.REGISTRATION_OTP_EXPIRATION_MINUTES, TimeUnit.MINUTES);
-
-        return ApiResponse.builder()
-                .code(code(SUCCESS))
-                .message(message("otp.registration.sent"))
-                .build();
-    }
-
-    @Override
     public ApiResponse<Object> verifyRegistration(VerifyRegistrationRequest request) {
         String otpKey;
 
@@ -447,47 +428,48 @@ public class UserServiceImpl implements UserService {
             }
         }
 
-        // Get registration data
+        // Get user ID from temp storage
         String tempKey = "temp_registration:" + request.getOtp();
-        String tempData = otpService.getOtp(tempKey);
-        if (tempData == null) {
+        String userIdStr = otpService.getOtp(tempKey);
+        if (userIdStr == null) {
             throw new AppException(StatusCode.INVALID_KEY, message("auth.otp.expired"));
         }
 
-        String[] parts = tempData.split("\\|");
+        Long userId = Long.parseLong(userIdStr);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(StatusCode.DATA_NOT_EXISTED, message("auth.user.notfound")));
 
-        User user = new User();
-        user.setUsername(parts[0]);
-        user.setPassword(passwordEncoder.encode(parts[1]));
-        user.setName(parts[2]);
-        user.setEmail(parts[3]);
-        user.setPhoneNumber(parts[4]);
-        user.setCreateBy(parts[5]);
+        // Activate user
         user.setActive(Contant.IS_ACTIVE.ACTIVE);
-
         userRepository.save(user);
-
-        // Assign USER role by default
-        Role userRole = roleService.findByName("USER");
-        if (userRole != null) {
-            roleService.assignRoleToUser(user.getId(), userRole.getId());
-        }
 
         // Clean up
         otpService.deleteOtp(otpKey);
         otpService.deleteOtp(tempKey);
 
-        // Send welcome notification
-        webSocketService.sendToUser(user.getId().toString(), "welcome",
-                "Chào mừng!", "Tài khoản đã được tạo thành công");
+        // Clean up other OTP key if both email and SMS were sent
+        if ("sms".equals(request.getVerificationMethod()) && user.getEmail() != null) {
+            otpService.deleteOtp("registration_otp_email:" + user.getEmail());
+        } else if ("email".equals(request.getVerificationMethod()) && user.getPhoneNumber() != null) {
+            otpService.deleteOtp("registration_otp_sms:" + user.getPhoneNumber());
+        }
+
+        // Send welcome notification via Kafka
+        notificationPublisher.sendWebSocketToUser(
+                user.getId().toString(),
+                "welcome",
+                message("notification.welcome.title"),
+                message("notification.welcome.message")
+        );
 
         return ApiResponse.builder()
                 .code(code(SUCCESS))
-                .message(message("auth.register.success"))
+                .message(message("otp.verification.success"))
                 .build();
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional
     public ApiResponse<Object> create(UserRequest request, MultipartFile avatar) {
         ApiResponse<Object> checkRes = performChecks(request);
         if (checkRes != null) {
@@ -521,9 +503,9 @@ public class UserServiceImpl implements UserService {
         // Upload avatar if provided
         if (avatar != null && !avatar.isEmpty()) {
             try {
-                ApiResponse<com.infinite.common.dto.response.FileUploadResponse> uploadResult = 
-                    fileClient.uploadFile(avatar, "avatar", user.getId().toString());
-                
+                ApiResponse<com.infinite.common.dto.response.FileUploadResponse> uploadResult =
+                        fileClient.uploadFile(avatar, "avatar", user.getId().toString());
+
                 if (uploadResult.getCode() == code(SUCCESS)) {
                     user.setImageUrl(uploadResult.getResult().getFileUrl());
                     userRepository.save(user);
@@ -533,16 +515,27 @@ public class UserServiceImpl implements UserService {
             }
         }
 
-        String verificationToken = otpService.generateOtp();
-        otpService.storeOtp("email_verification_token:" + verificationToken, request.getEmail(),
-                OtpConstant.EMAIL_VERIFICATION_OTP_EXPIRATION_MINUTES, TimeUnit.MINUTES);
+        // Send account verification email instead of OTP
+        String verificationToken = UUID.randomUUID().toString();
 
-        String verificationUrl = appBaseUrl + "/v1/api/auth/verify-email?token=" + verificationToken;
-        emailService.sendVerificationEmail(request.getEmail(), verificationUrl);
+        // Store verification token temporarily
+        String tokenKey = "verification_token:" + verificationToken;
+        otpService.storeOtp(tokenKey, user.getId().toString(),
+                OtpConstant.REGISTRATION_OTP_EXPIRATION_MINUTES, TimeUnit.MINUTES);
+
+        if (request.getEmail() != null && !request.getEmail().isEmpty()) {
+            // Send verification email via Kafka
+            notificationPublisher.sendAccountVerificationEmail(
+                    request.getEmail(),
+                    user.getId().toString(),
+                    request.getUsername(),
+                    verificationToken
+            );
+        }
 
         return ApiResponse.builder()
                 .code(code(SUCCESS))
-                .message(message("auth.register.success"))
+                .message(message("auth.register.verification.sent"))
                 .build();
     }
 
@@ -574,7 +567,7 @@ public class UserServiceImpl implements UserService {
         if (request.getActive() != null) {
             user.setActive(request.getActive());
 
-            // If admin sets active = 0, reset password and send verification email
+            // If admin sets active = 0, reset password and send verification email via Kafka
             if (request.getActive() == Contant.IS_ACTIVE.INACTIVE && !request.getActive().equals(oldActive)) {
                 user.setPassword(passwordEncoder.encode(Contant.PASSWORD_DEFAULT));
 
@@ -583,19 +576,32 @@ public class UserServiceImpl implements UserService {
                         OtpConstant.EMAIL_VERIFICATION_OTP_EXPIRATION_MINUTES, TimeUnit.MINUTES);
 
                 String verificationUrl = appBaseUrl + "/v1/api/auth/verify-email?token=" + verificationToken;
-                emailService.sendPasswordResetVerificationEmail(user.getEmail(), verificationUrl, Contant.PASSWORD_DEFAULT);
+
+                // Send password reset verification email via Kafka
+                EmailNotificationEvent event = EmailNotificationEvent.builder()
+                        .to(user.getEmail())
+                        .subject("Password Reset Verification")
+                        .content(verificationUrl)
+                        .userId(user.getId().toString())
+                        .metadata(Map.of(
+                                "type", "password_reset_verification",
+                                "verificationUrl", verificationUrl,
+                                "defaultPassword", Contant.PASSWORD_DEFAULT
+                        ))
+                        .build();
+                notificationPublisher.publishEmailNotification(event);
             }
         }
 
         // Upload avatar if provided
         if (avatar != null && !avatar.isEmpty()) {
             try {
-                ApiResponse<com.infinite.common.dto.response.FileUploadResponse> uploadResult = 
-                    fileClient.uploadFile(avatar, "avatar", user.getId().toString());
-                
+                ApiResponse<com.infinite.common.dto.response.FileUploadResponse> uploadResult =
+                        fileClient.uploadFile(avatar, "avatar", user.getId().toString());
+
                 if (uploadResult.getCode() == code(SUCCESS)) {
                     user.setImageUrl(uploadResult.getResult().getFileUrl());
-                    
+
                     // Delete old avatar asynchronously
                     if (oldImageUrl != null && !oldImageUrl.isEmpty()) {
                         String oldFileName = extractFileNameFromUrl(oldImageUrl);
@@ -703,6 +709,18 @@ public class UserServiceImpl implements UserService {
 
         userRepository.save(user);
 
+        // Send notification email
+        if (user.getEmail() != null && !user.getEmail().isEmpty()) {
+            notificationPublisher.sendUserStatusChangeNotification(
+                    user.getEmail(),
+                    user.getId().toString(),
+                    user.getUsername(),
+                    "LOCKED",
+                    request.getLockTime(),
+                    request.getNguoithuchien()
+            );
+        }
+
         String lockMessage = request.getLockTime() != null
                 ? message("user.lock.temporary") + " " + request.getLockTime()
                 : message("user.lock.permanent");
@@ -723,6 +741,18 @@ public class UserServiceImpl implements UserService {
         user.setModifiedBy(nguoithuchien);
 
         userRepository.save(user);
+
+        // Send notification email
+        if (user.getEmail() != null && !user.getEmail().isEmpty()) {
+            notificationPublisher.sendUserStatusChangeNotification(
+                    user.getEmail(),
+                    user.getId().toString(),
+                    user.getUsername(),
+                    "UNLOCKED",
+                    null,
+                    nguoithuchien
+            );
+        }
 
         return ApiResponse.builder()
                 .code(code(SUCCESS))
@@ -822,23 +852,23 @@ public class UserServiceImpl implements UserService {
     public ApiResponse<Object> uploadAvatar(Long userId, MultipartFile file) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(StatusCode.DATA_NOT_EXISTED, message("auth.user.notfound")));
-        
+
         // Upload file using file client (async for better performance)
-        ApiResponse<com.infinite.common.dto.response.FileUploadResponse> uploadResult = 
-            fileClient.uploadFile(file, "avatar", userId.toString());
-        
+        ApiResponse<com.infinite.common.dto.response.FileUploadResponse> uploadResult =
+                fileClient.uploadFile(file, "avatar", userId.toString());
+
         if (uploadResult.getCode() != code(SUCCESS)) {
             return ApiResponse.builder()
                     .code(uploadResult.getCode())
                     .message(uploadResult.getMessage())
                     .build();
         }
-        
+
         // Update user's imageUrl
         String oldImageUrl = user.getImageUrl();
         user.setImageUrl(uploadResult.getResult().getFileUrl());
         userRepository.save(user);
-        
+
         // Delete old avatar asynchronously (non-blocking)
         if (oldImageUrl != null && !oldImageUrl.isEmpty()) {
             try {
@@ -850,25 +880,111 @@ public class UserServiceImpl implements UserService {
                 log.warn("Failed to delete old avatar: {}", oldImageUrl, e);
             }
         }
-        
+
         return ApiResponse.builder()
                 .code(code(SUCCESS))
                 .message(message("user.avatar.upload.success"))
                 .result(uploadResult.getResult())
                 .build();
     }
-    
+
     private String extractFileNameFromUrl(String fileUrl) {
         if (fileUrl == null || fileUrl.isEmpty()) {
             return null;
         }
-        
+
         // Extract filename from URL like: http://localhost:8080/api/files/avatar/20241219_143022_abc123.jpg
         String[] parts = fileUrl.split("/");
         if (parts.length > 0) {
             return parts[parts.length - 1];
         }
-        
+
         return null;
+    }
+
+    @Override
+    public String verifyRegistrationToken(VerifyRegistrationTokenRequest request) {
+        // Set locale from request parameter
+        Locale locale = Locale.forLanguageTag(request.getLang() != null ? request.getLang() : "vi");
+        LocaleContextHolder.setLocale(locale);
+        
+        try {
+            String tokenKey = "verification_token:" + request.getToken();
+            String userIdStr = otpService.getOtp(tokenKey);
+
+            if (userIdStr == null) {
+                return buildRegistrationResultHtml(false,
+                        message("email.registration.result.invalid.token"), request.getLang());
+            }
+
+            Long userId = Long.parseLong(userIdStr);
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new AppException(StatusCode.DATA_NOT_EXISTED, "User not found"));
+
+            if ("approve".equals(request.getAction())) {
+                // Approve registration - activate user
+                user.setActive(Contant.IS_ACTIVE.ACTIVE);
+                userRepository.save(user);
+
+                // Clean up token
+                otpService.deleteOtp(tokenKey);
+
+                return buildRegistrationResultHtml(true,
+                        message("email.registration.result.approved"),
+                        request.getLang());
+
+            } else if ("reject".equals(request.getAction())) {
+                // Reject registration - delete user
+                userRepository.delete(user);
+
+                // Clean up token
+                otpService.deleteOtp(tokenKey);
+
+                return buildRegistrationResultHtml(true,
+                        message("email.registration.result.rejected"),
+                        request.getLang());
+            } else {
+                return buildRegistrationResultHtml(false,
+                        message("email.registration.result.invalid.action"), request.getLang());
+            }
+
+        } catch (Exception e) {
+            log.error("Error verifying registration token: {}", request.getToken(), e);
+            return buildRegistrationResultHtml(false,
+                    message("email.registration.result.error.message"), request.getLang());
+        } finally {
+            LocaleContextHolder.resetLocaleContext();
+        }
+    }
+
+    private String buildRegistrationResultHtml(boolean success, String messageText, String lang) {
+        String title = success ? message("email.registration.result.success") : message("email.registration.result.error");
+        String color = success ? "#28a745" : "#dc3545";
+        String homeBtn = message("email.registration.result.home");
+
+        return """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <title>%s</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
+                        .container { max-width: 600px; margin: 50px auto; background-color: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; }
+                        .title { color: %s; font-size: 28px; font-weight: bold; margin-bottom: 20px; }
+                        .message { font-size: 18px; line-height: 1.6; color: #333; margin-bottom: 30px; }
+                        .btn { display: inline-block; padding: 12px 30px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; }
+                        .btn:hover { background-color: #0056b3; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="title">%s</div>
+                        <div class="message">%s</div>
+                        <a href="/" class="btn">%s</a>
+                    </div>
+                </body>
+                </html>
+                """.formatted(title, color, title, messageText, homeBtn);
     }
 }

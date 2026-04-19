@@ -18,15 +18,19 @@ public class UserDto {
     private String username;
     private String name;
     private String email;
+    private String phoneNumber;
+    private String imageUrl;
     private Integer active;
     private List<String> roles;
     
     // Constructor for JPA query (without roles)
-    public UserDto(Long id, String username, String name, String email, Integer active) {
+    public UserDto(Long id, String username, String name, String email, String phoneNumber, String imageUrl, Integer active) {
         this.id = id;
         this.username = username;
         this.name = name;
         this.email = email;
+        this.phoneNumber = phoneNumber;
+        this.imageUrl = imageUrl;
         this.active = active;
     }
 }

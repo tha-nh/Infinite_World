@@ -17,8 +17,8 @@ public interface UserService {
     ApiResponse<Object> verifyForgotPasswordSmsOtp(ForgotPasswordSmsOtpRequest request);
     ApiResponse<Object> verifyEmail(VerifyEmailRequest request);
     String verifyEmailHtml(VerifyEmailRequest request);
-    ApiResponse<Object> registerWithVerification(RegistrationRequest request);
     ApiResponse<Object> verifyRegistration(VerifyRegistrationRequest request);
+    String verifyRegistrationToken(VerifyRegistrationTokenRequest request);
     ApiResponse<Object> create(UserRequest request, MultipartFile avatar);
     ApiResponse<Object> update(UserRequest request, MultipartFile avatar);
     ApiResponse<Object> searchUsers(SearchRequest request, Pageable pageable);

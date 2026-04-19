@@ -2,6 +2,7 @@ package com.infinite.user.scheduler;
 
 import com.infinite.user.model.User;
 import com.infinite.user.repository.UserRepository;
+import com.infinite.user.service.NotificationPublisher;
 import com.infinite.user.util.Contant;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +19,7 @@ import java.util.List;
 public class UserUnlockScheduler {
     
     private final UserRepository userRepository;
+    private final NotificationPublisher notificationPublisher;
     
     @Scheduled(cron = "0 0 0 * * ?") // Chạy lúc 0h sáng hàng ngày
     @Transactional
@@ -34,6 +36,18 @@ public class UserUnlockScheduler {
                 user.setModifiedBy("SYSTEM");
                 userRepository.save(user);
                 unlockedCount++;
+                
+                // Send notification email
+                if (user.getEmail() != null && !user.getEmail().isEmpty()) {
+                    notificationPublisher.sendUserStatusChangeNotification(
+                        user.getEmail(),
+                        user.getId().toString(),
+                        user.getUsername(),
+                        "AUTO_UNLOCKED",
+                        null,
+                        "SYSTEM"
+                    );
+                }
                 
                 log.info("Unlocked user: {} (ID: {})", user.getUsername(), user.getId());
             }

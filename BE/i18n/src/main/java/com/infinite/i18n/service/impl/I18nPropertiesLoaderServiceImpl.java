@@ -35,15 +35,16 @@ public class I18nPropertiesLoaderServiceImpl implements I18nPropertiesLoaderServ
         try {
             Properties properties = new Properties();
             
+            // Try to load from common module's i18n folder first
             String filePathWithLanguage = String.format("%s_%s.properties", 
                 propertiesFilePath, language);
             
-            log.info("Loading properties from: {}", filePathWithLanguage);
+            log.info("Loading properties from classpath: {}", filePathWithLanguage);
             
             ClassPathResource resource = new ClassPathResource(filePathWithLanguage);
             
             if (!resource.exists()) {
-                log.error("Properties file not found: {}", filePathWithLanguage);
+                log.error("Properties file not found in classpath: {}", filePathWithLanguage);
                 return ApiResponse.builder()
                         .code(1001)
                         .message(MessageUtils.getMessage("i18n.properties.file.not.found", filePathWithLanguage))
@@ -51,19 +52,16 @@ public class I18nPropertiesLoaderServiceImpl implements I18nPropertiesLoaderServ
             }
             
             try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(resource.getInputStream()))) {
+                    new InputStreamReader(resource.getInputStream(), "UTF-8"))) {
                 properties.load(reader);
-                log.info("Loaded {} properties from file", properties.size());
+                log.info("Loaded {} properties from file for language: {}", properties.size(), language);
             }
             
             for (Object keyObj : properties.keySet()) {
                 String key = (String) keyObj;
                 String messageValue = properties.getProperty(key);
                 
-                log.debug("Processing key: {} = {}", key, messageValue);
-                
                 if (key.startsWith("#") || messageValue == null || messageValue.trim().isEmpty()) {
-                    log.debug("Skipping key: {}", key);
                     continue;
                 }
                 
@@ -76,9 +74,6 @@ public class I18nPropertiesLoaderServiceImpl implements I18nPropertiesLoaderServ
                 ApiResponse<Object> response = i18nService.saveMessage(language, entity);
                 if (response.getCode() == 1000) {
                     count++;
-                    log.debug("Saved message to DB: {}", key);
-                } else {
-                    log.warn("Failed to save message: {} - {}", key, response.getMessage());
                 }
             }
             
@@ -87,10 +82,10 @@ public class I18nPropertiesLoaderServiceImpl implements I18nPropertiesLoaderServ
             return ApiResponse.builder()
                     .code(1000)
                     .message(MessageUtils.getMessage("SUCCESS"))
-                    .result(MessageUtils.getMessage("i18n.properties.loaded.count", String.valueOf(count), language))
+                    .result(String.format(MessageUtils.getMessage("i18n.properties.loaded.count"), count, language))
                     .build();
         } catch (Exception e) {
-            log.error("Error loading from properties: ", e);
+            log.error("Error loading from properties for language {}: ", language, e);
             return ApiResponse.builder()
                     .code(1001)
                     .message(MessageUtils.getMessage("i18n.properties.load.error") + ": " + e.getMessage())
@@ -100,27 +95,79 @@ public class I18nPropertiesLoaderServiceImpl implements I18nPropertiesLoaderServ
 
     @Override
     public ApiResponse<Object> loadPropertiesToDatabaseAndCache(String language) {
-        ApiResponse<Object> dbResult = loadPropertiesToDatabase(language);
+        int count = 0;
         
-        if (dbResult.getCode() != 1000) {
-            return dbResult;
-        }
-        
-        log.info("Loading from database to Redis cache for language: {}", language);
-        ApiResponse<Object> cacheResult = i18nService.loadDatabaseToCache(language);
-        
-        if (cacheResult.getCode() == 1000) {
+        try {
+            Properties properties = new Properties();
+            
+            String filePathWithLanguage = String.format("%s_%s.properties", 
+                propertiesFilePath, language);
+            
+            log.info("Loading properties from classpath: {}", filePathWithLanguage);
+            
+            ClassPathResource resource = new ClassPathResource(filePathWithLanguage);
+            
+            if (!resource.exists()) {
+                log.error("Properties file not found in classpath: {}", filePathWithLanguage);
+                return ApiResponse.builder()
+                        .code(1001)
+                        .message(MessageUtils.getMessage("i18n.properties.file.not.found", filePathWithLanguage))
+                        .build();
+            }
+            
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(resource.getInputStream(), "UTF-8"))) {
+                properties.load(reader);
+                log.info("Loaded {} properties from file for language: {}", properties.size(), language);
+            }
+            
+            // Load to database
+            for (Object keyObj : properties.keySet()) {
+                String key = (String) keyObj;
+                String messageValue = properties.getProperty(key);
+                
+                if (key.startsWith("#") || messageValue == null || messageValue.trim().isEmpty()) {
+                    continue;
+                }
+                
+                I18nMessage entity = I18nMessage.builder()
+                        .key(key)
+                        .message(messageValue)
+                        .language(language)
+                        .build();
+                
+                ApiResponse<Object> response = i18nService.saveMessage(language, entity);
+                if (response.getCode() == 1000) {
+                    count++;
+                }
+            }
+            
+            log.info("Successfully loaded {} messages to database for language: {}", count, language);
+            
+            // Load to cache
+            log.info("Loading from database to Redis cache for language: {}", language);
+            ApiResponse<Object> cacheResult = i18nService.loadDatabaseToCache(language);
+            
+            if (cacheResult.getCode() == 1000) {
+                return ApiResponse.builder()
+                        .code(1000)
+                        .message(MessageUtils.getMessage("SUCCESS"))
+                        .result(String.format(MessageUtils.getMessage("i18n.properties.loaded.with.cache.count"), count, language))
+                        .build();
+            }
+            
             return ApiResponse.builder()
                     .code(1000)
                     .message(MessageUtils.getMessage("SUCCESS"))
-                    .result(MessageUtils.getMessage("i18n.properties.loaded.with.cache", language))
+                    .result(String.format(MessageUtils.getMessage("i18n.properties.loaded.cache.failed"), cacheResult.getMessage()))
+                    .build();
+                    
+        } catch (Exception e) {
+            log.error("Error loading from properties for language {}: ", language, e);
+            return ApiResponse.builder()
+                    .code(1001)
+                    .message(MessageUtils.getMessage("i18n.properties.load.error") + ": " + e.getMessage())
                     .build();
         }
-        
-        return ApiResponse.builder()
-                .code(1000)
-                .message(MessageUtils.getMessage("SUCCESS"))
-                .result(MessageUtils.getMessage("i18n.properties.loaded.cache.failed", cacheResult.getMessage()))
-                .build();
     }
 }

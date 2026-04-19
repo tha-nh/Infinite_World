@@ -26,7 +26,8 @@ public class MessageConfig {
         ms.setBasename("classpath:i18n/messages");
         ms.setDefaultEncoding(StandardCharsets.UTF_8.name());
         ms.setCacheSeconds(-1);
-        ms.setUseCodeAsDefaultMessage(false);
+        ms.setUseCodeAsDefaultMessage(true);
+        ms.setFallbackToSystemLocale(false);
         return ms;
     }
 }

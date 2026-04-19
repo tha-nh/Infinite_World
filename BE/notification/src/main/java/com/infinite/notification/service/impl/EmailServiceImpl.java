@@ -8,6 +8,7 @@ import com.infinite.notification.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -16,15 +17,22 @@ import org.springframework.stereotype.Service;
 
 import jakarta.mail.internet.MimeMessage;
 
+import java.text.MessageFormat;
+import java.time.LocalDateTime;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class EmailServiceImpl implements EmailService {
 
     private final JavaMailSender mailSender;
+    private final MessageUtils messageUtils;
 
     @Value("${spring.mail.username}")
     private String fromEmail;
+    
+    @Value("${app.base-url:http://localhost:8080}")
+    private String appBaseUrl;
 
     @Async
     @Override
@@ -68,14 +76,11 @@ public class EmailServiceImpl implements EmailService {
     @Override
     public void sendVerificationEmail(String email, String verificationUrl) {
         try {
-            String currentLang = org.springframework.context.i18n.LocaleContextHolder.getLocale().getLanguage();
-            String verificationUrlWithLang = verificationUrl + "&lang=" + currentLang;
-
             String subject = MessageUtils.getMessage(EmailTemplate.VERIFICATION_SUBJECT);
             String approveButton = MessageUtils.getMessage(EmailTemplate.VERIFICATION_BUTTON_APPROVE);
             String rejectButton = MessageUtils.getMessage(EmailTemplate.VERIFICATION_BUTTON_REJECT);
 
-            String htmlContent = buildVerificationEmailHtml(verificationUrlWithLang, approveButton, rejectButton);
+            String htmlContent = buildVerificationEmailHtml(verificationUrl, approveButton, rejectButton);
 
             EmailRequest request = EmailRequest.builder()
                     .to(email)
@@ -288,5 +293,231 @@ public class EmailServiceImpl implements EmailService {
                 "    </div>" +
                 "</body>" +
                 "</html>";
+    }
+
+    @Override
+    @Async
+    public void sendUserLockedEmail(String email, String username, LocalDateTime lockTime, String performedBy) {
+        try {
+            String subject = messageUtils.getMessage("email.user.locked.subject");
+            String lockType = lockTime != null 
+                ? messageUtils.getMessage("email.user.locked.temporary") + " " + lockTime 
+                : messageUtils.getMessage("email.user.locked.permanent");
+            String content = buildUserStatusChangeHtml(
+                messageUtils.getMessage("email.user.locked.title"),
+                MessageFormat.format(messageUtils.getMessage("email.user.locked.message"), username, lockType, performedBy),
+                messageUtils.getMessage("email.user.locked.note"),
+                "#dc3545"
+            );
+            
+            EmailRequest request = EmailRequest.builder()
+                .to(email)
+                .subject(subject)
+                .content(content)
+                .isHtml(true)
+                .build();
+                
+            sendHtmlEmail(request);
+            log.info("User locked email sent to: {}", email);
+        } catch (Exception e) {
+            log.error("Failed to send user locked email to: {}", email, e);
+        }
+    }
+
+    @Override
+    @Async
+    public void sendUserUnlockedEmail(String email, String username, String performedBy) {
+        try {
+            String subject = messageUtils.getMessage("email.user.unlocked.subject");
+            String content = buildUserStatusChangeHtml(
+                messageUtils.getMessage("email.user.unlocked.title"),
+                MessageFormat.format(messageUtils.getMessage("email.user.unlocked.message"), username, performedBy),
+                messageUtils.getMessage("email.user.unlocked.note"),
+                "#28a745"
+            );
+            
+            EmailRequest request = EmailRequest.builder()
+                .to(email)
+                .subject(subject)
+                .content(content)
+                .isHtml(true)
+                .build();
+                
+            sendHtmlEmail(request);
+            log.info("User unlocked email sent to: {}", email);
+        } catch (Exception e) {
+            log.error("Failed to send user unlocked email to: {}", email, e);
+        }
+    }
+
+    @Override
+    @Async
+    public void sendUserAutoUnlockedEmail(String email, String username) {
+        try {
+            String subject = messageUtils.getMessage("email.user.auto.unlocked.subject");
+            String content = buildUserStatusChangeHtml(
+                messageUtils.getMessage("email.user.auto.unlocked.title"),
+                MessageFormat.format(messageUtils.getMessage("email.user.auto.unlocked.message"), username),
+                messageUtils.getMessage("email.user.auto.unlocked.note"),
+                "#17a2b8"
+            );
+            
+            EmailRequest request = EmailRequest.builder()
+                .to(email)
+                .subject(subject)
+                .content(content)
+                .isHtml(true)
+                .build();
+                
+            sendHtmlEmail(request);
+            log.info("User auto-unlocked email sent to: {}", email);
+        } catch (Exception e) {
+            log.error("Failed to send user auto-unlocked email to: {}", email, e);
+        }
+    }
+
+    @Override
+    @Async
+    public void sendUserUpdatedEmail(String email, String username, String performedBy) {
+        try {
+            String subject = messageUtils.getMessage("email.user.updated.subject");
+            String content = buildUserStatusChangeHtml(
+                messageUtils.getMessage("email.user.updated.title"),
+                MessageFormat.format(messageUtils.getMessage("email.user.updated.message"), username, performedBy),
+                messageUtils.getMessage("email.user.updated.note"),
+                "#ffc107"
+            );
+            
+            EmailRequest request = EmailRequest.builder()
+                .to(email)
+                .subject(subject)
+                .content(content)
+                .isHtml(true)
+                .build();
+                
+            sendHtmlEmail(request);
+            log.info("User updated email sent to: {}", email);
+        } catch (Exception e) {
+            log.error("Failed to send user updated email to: {}", email, e);
+        }
+    }
+
+    @Override
+    @Async
+    public void sendAccountVerificationEmail(String email, String username, String verificationToken, String userId) {
+        try {
+            String currentLang = LocaleContextHolder.getLocale().getLanguage();
+            String subject = messageUtils.getMessage("email.account.verification.subject");
+            String approveUrl = appBaseUrl + "/v1/api/auth/verify-registration?token=" + verificationToken + "&action=approve&lang=" + currentLang;
+            String rejectUrl = appBaseUrl + "/v1/api/auth/verify-registration?token=" + verificationToken + "&action=reject&lang=" + currentLang;
+            
+            String content = buildAccountVerificationHtml(username, approveUrl, rejectUrl);
+            
+            EmailRequest request = EmailRequest.builder()
+                .to(email)
+                .subject(subject)
+                .content(content)
+                .isHtml(true)
+                .build();
+                
+            sendHtmlEmail(request);
+            log.info("Account verification email sent to: {} with locale: {}", email, currentLang);
+        } catch (Exception e) {
+            log.error("Failed to send account verification email to: {}", email, e);
+        }
+    }
+
+    private String buildUserStatusChangeHtml(String title, String message, String note, String color) {
+        String footer = messageUtils.getMessage("email.footer.auto");
+        return String.format("""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>%s</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
+                    .container { max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                    .header { text-align: center; margin-bottom: 30px; }
+                    .title { color: %s; font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+                    .message { font-size: 16px; line-height: 1.6; margin-bottom: 20px; color: #333; }
+                    .note { font-size: 14px; color: #666; font-style: italic; }
+                    .footer { margin-top: 30px; text-align: center; font-size: 12px; color: #999; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <div class="title">%s</div>
+                    </div>
+                    <div class="message">%s</div>
+                    <div class="note">%s</div>
+                    <div class="footer">
+                        <p>%s</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """, title, color, title, message, note, footer);
+    }
+
+    private String buildAccountVerificationHtml(String username, String approveUrl, String rejectUrl) {
+        String title = messageUtils.getMessage("email.account.verification.title");
+        String greeting = MessageFormat.format(messageUtils.getMessage("email.account.verification.greeting"), username);
+        String message = messageUtils.getMessage("email.account.verification.message");
+        String approveBtn = messageUtils.getMessage("email.account.verification.approve");
+        String rejectBtn = messageUtils.getMessage("email.account.verification.reject");
+        String noteTitle = messageUtils.getMessage("email.account.verification.note.title");
+        String noteApprove = messageUtils.getMessage("email.account.verification.note.approve");
+        String noteReject = messageUtils.getMessage("email.account.verification.note.reject");
+        String footer = messageUtils.getMessage("email.footer.auto");
+        String footerIgnore = messageUtils.getMessage("email.account.verification.footer.ignore");
+        
+        return String.format("""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>%s</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
+                    .container { max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                    .header { text-align: center; margin-bottom: 30px; }
+                    .title { color: #007bff; font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+                    .message { font-size: 16px; line-height: 1.6; margin-bottom: 30px; color: #333; }
+                    .buttons { text-align: center; margin: 30px 0; }
+                    .btn { display: inline-block; padding: 12px 30px; margin: 0 10px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px; }
+                    .btn-approve { background-color: #28a745; color: white; }
+                    .btn-reject { background-color: #dc3545; color: white; }
+                    .btn:hover { opacity: 0.8; }
+                    .footer { margin-top: 30px; text-align: center; font-size: 12px; color: #999; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <div class="title">%s</div>
+                    </div>
+                    <div class="message">
+                        %s <strong>%s</strong>,<br><br>
+                        %s
+                    </div>
+                    <div class="buttons">
+                        <a href="%s" class="btn btn-approve">%s</a>
+                        <a href="%s" class="btn btn-reject">%s</a>
+                    </div>
+                    <div class="message">
+                        <strong>%s</strong> %s<br>
+                        %s
+                    </div>
+                    <div class="footer">
+                        <p>%s</p>
+                        <p>%s</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """, title, title, greeting, username, message, approveUrl, approveBtn, rejectUrl, rejectBtn, 
+            noteTitle, noteApprove, noteReject, footer, footerIgnore);
     }
 }

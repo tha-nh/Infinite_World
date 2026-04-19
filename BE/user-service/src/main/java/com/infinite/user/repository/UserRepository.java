@@ -30,6 +30,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
                     u.username,
                     u.name,
                     u.email,
+                    u.phoneNumber,
+                    u.imageUrl,
                     u.active
                 )
                 FROM User u

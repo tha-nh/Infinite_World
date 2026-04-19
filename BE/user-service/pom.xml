@@ -127,11 +127,10 @@
             <version>${project.version}</version>
         </dependency>
 
-        <!-- Notification -->
+        <!-- Kafka -->
         <dependency>
-            <groupId>com.infinite</groupId>
-            <artifactId>notification</artifactId>
-            <version>${project.version}</version>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
         </dependency>
 
         <dependency>

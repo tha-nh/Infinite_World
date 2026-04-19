@@ -1,16 +1,7 @@
 package com.infinite.user.controller.rest;
 
 import com.infinite.common.dto.response.ApiResponse;
-import com.infinite.user.dto.request.ChangePasswordRequest;
-import com.infinite.user.dto.request.ForgotPasswordRequest;
-import com.infinite.user.dto.request.ForgotPasswordOtpRequest;
-import com.infinite.user.dto.request.ForgotPasswordSmsRequest;
-import com.infinite.user.dto.request.ForgotPasswordSmsOtpRequest;
-import com.infinite.user.dto.request.LoginRequest;
-import com.infinite.user.dto.request.RegistrationRequest;
-import com.infinite.user.dto.request.UserRequest;
-import com.infinite.user.dto.request.VerifyEmailRequest;
-import com.infinite.user.dto.request.VerifyRegistrationRequest;
+import com.infinite.user.dto.request.*;
 import com.infinite.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -35,19 +26,7 @@ public class AuthController {
         return userService.login(request);
     }
 
-    @Operation(summary = "Đăng ký với xác thực OTP", description = "Đăng ký tài khoản mới với xác thực qua Email hoặc SMS")
-    @PostMapping("/register-with-verification")
-    public ApiResponse<Object> registerWithVerification(@RequestBody RegistrationRequest request){
-        return userService.registerWithVerification(request);
-    }
-
-    @Operation(summary = "Xác thực đăng ký", description = "Xác thực OTP và hoàn tất đăng ký tài khoản")
-    @PostMapping("/verify-registration")
-    public ApiResponse<Object> verifyRegistration(@RequestBody VerifyRegistrationRequest request){
-        return userService.verifyRegistration(request);
-    }
-
-    @Operation(summary = "Đăng ký tài khoản", description = "Đăng ký tài khoản mới và gửi email xác thực")
+    @Operation(summary = "Đăng ký tài khoản", description = "Đăng ký tài khoản mới và gửi OTP qua email/SMS")
     @PostMapping(value = "/register", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<Object> register(
             @RequestParam(value = "request") String requestJson,
@@ -55,6 +34,19 @@ public class AuthController {
         com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
         UserRequest request = objectMapper.readValue(requestJson, UserRequest.class);
         return userService.create(request, avatar);
+    }
+
+    @Operation(summary = "Xác thực đăng ký", description = "Xác thực token và kích hoạt/từ chối tài khoản")
+    @GetMapping(value = "/verify-registration", produces = "text/html")
+    public String verifyRegistration(
+            @RequestParam String token,
+            @RequestParam String action,
+            @RequestParam(required = false, defaultValue = "vi") String lang){
+        VerifyRegistrationTokenRequest request = new VerifyRegistrationTokenRequest();
+        request.setToken(token);
+        request.setAction(action);
+        request.setLang(lang);
+        return userService.verifyRegistrationToken(request);
     }
 
     @Operation(summary = "Xác thực email", description = "Xác thực email thông qua token trong email")

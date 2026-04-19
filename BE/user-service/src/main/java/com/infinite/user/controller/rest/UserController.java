@@ -2,9 +2,7 @@ package com.infinite.user.controller.rest;
 
 import com.infinite.common.dto.request.SearchRequest;
 import com.infinite.common.dto.response.ApiResponse;
-import com.infinite.user.dto.request.ChangePasswordRequest;
-import com.infinite.user.dto.request.LockUserRequest;
-import com.infinite.user.dto.request.UserRequest;
+import com.infinite.user.dto.request.*;
 import com.infinite.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -15,8 +13,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.util.List;
 
 @RestController
 @RequestMapping(path = "v1/api/user", produces = MediaType.APPLICATION_JSON_VALUE)
