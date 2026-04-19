@@ -19,6 +19,7 @@
 
     <modules>
         <module>common</module>
+        <module>notification</module>
         <module>user-service</module>
         <module>gateway</module>
     </modules>

@@ -127,6 +127,13 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- Notification -->
+        <dependency>
+            <groupId>com.infinite</groupId>
+            <artifactId>notification</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>io.minio</groupId>
             <artifactId>minio</artifactId>

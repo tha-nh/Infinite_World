@@ -2,40 +2,53 @@ package com.infinite.user.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @Entity
-@Table(name = "ROLE")
+@Table(name = "roles")
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class Role {
+    
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ID")
     private Long id;
-
-    @Column(name = "NAME")
+    
+    @Column(unique = true, nullable = false)
     private String name;
-
-    @Column(name = "CODE")
-    private String code;
-
-    @Column(name = "STATUS")
-    private Integer status;
-
-    @Column(name = "DESCRIPTION")
+    
     private String description;
-
-    @Column(name = "ACTIVE")
-    private Integer active;
-
-    @Column(name = "LEVEL")
-    private String level;
-
-    @Column(name = "LOCK_TIME")
-    private LocalDateTime lockTime;
+    
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+    
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+    
+    @Column(name = "created_by")
+    private String createdBy;
+    
+    @Column(name = "updated_by")
+    private String updatedBy;
+    
+    @ManyToMany(mappedBy = "roles")
+    private Set<User> users;
+    
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+    
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }

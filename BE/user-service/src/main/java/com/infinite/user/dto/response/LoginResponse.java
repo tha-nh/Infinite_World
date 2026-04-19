@@ -3,6 +3,8 @@ package com.infinite.user.dto.response;
 import lombok.Builder;
 import lombok.Data;
 
+import java.util.Set;
+
 @Data
 @Builder
 public class LoginResponse {
@@ -10,4 +12,5 @@ public class LoginResponse {
     private String name;
     private String email;
     private String token;
+    private Set<String> roles;
 }

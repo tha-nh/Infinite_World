@@ -14,7 +14,7 @@ import java.util.Optional;
 
 @Slf4j
 @EnableAspectJAutoProxy
-@SpringBootApplication(scanBasePackages = {"com.infinite.common", "com.infinite.user"})
+@SpringBootApplication(scanBasePackages = {"com.infinite.user", "com.infinite.common", "com.infinite.notification"})
 public class UserServiceApplication {
     public static void main(String[] args) {
         SpringApplication app = new SpringApplication(UserServiceApplication.class);

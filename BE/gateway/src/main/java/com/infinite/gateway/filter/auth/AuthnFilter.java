@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.infinite.common.constant.StatusCode;
 import com.infinite.common.dto.response.ApiResponse;
 import com.infinite.common.dto.response.Response;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -22,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 @Component
 public class AuthnFilter {
@@ -46,10 +48,24 @@ public class AuthnFilter {
         }
 
         try {
-            Jwts.parserBuilder()
+            Claims claims = Jwts.parserBuilder()
                     .setSigningKey(getSigningKey())
                     .build()
-                    .parseClaimsJws(token);
+                    .parseClaimsJws(token)
+                    .getBody();
+            
+            // Extract username and roles from JWT
+            String username = claims.getSubject();
+            @SuppressWarnings("unchecked")
+            List<String> rolesList = claims.get("roles", List.class);
+            Set<String> roles = rolesList != null ? Set.copyOf(rolesList) : Set.of();
+            
+            // Add user info to request headers for downstream services
+            exchange.getRequest().mutate()
+                    .header("X-USER-ID", username)
+                    .header("X-USER-ROLES", String.join(",", roles))
+                    .build();
+            
             return true;
         } catch (JwtException | IllegalArgumentException ex) {
             return false;

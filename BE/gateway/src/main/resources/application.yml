@@ -67,3 +67,14 @@ gateway:
       filters:
         - Authorization=authz
         - Role=ADMIN
+
+    - id: i18n
+      uri: ${I18N_SERVICE}
+      predicates:
+        - Path=[
+          "/v1/api/i18n/**"
+          ]
+        - Method=GET,POST,PUT,DELETE,OPTIONS
+      filters:
+        - Authorization=authn,authz
+        - Role=ADMIN

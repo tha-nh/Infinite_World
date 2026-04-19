@@ -13,6 +13,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @Entity
 @Table(name = "USERS")
@@ -48,6 +49,10 @@ public class User {
     @Column(name = "EMAIL",length = 254, unique = true)
     private String email;
 
+    @Size(max = 20)
+    @Column(name = "PHONE_NUMBER", length = 20)
+    private String phoneNumber;
+
     @Size(max = 256)
     @Column(name = "IMAGE_URL", length = 256)
     private String imageUrl;
@@ -78,5 +83,13 @@ public class User {
     @LastModifiedDate
     @Column(name = "MODIFIED_TIME")
     private LocalDateTime modifiedTime;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+        name = "user_roles",
+        joinColumns = @JoinColumn(name = "user_id"),
+        inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
+    private Set<Role> roles;
 
 }

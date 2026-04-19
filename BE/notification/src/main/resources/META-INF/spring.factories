@@ -1,0 +1,3 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+com.infinite.notification.config.MailConfig,\
+com.infinite.notification.config.NotificationConfig
