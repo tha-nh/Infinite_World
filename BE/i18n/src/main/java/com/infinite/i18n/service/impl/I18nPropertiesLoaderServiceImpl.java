@@ -1,7 +1,6 @@
 package com.infinite.i18n.service.impl;
 
-import com.infinite.common.constant.StatusCode;
-import com.infinite.common.dto.response.ApiResponse;
+import com.infinite.i18n.dto.response.ApiResponse;
 import com.infinite.i18n.model.I18nMessage;
 import com.infinite.i18n.service.I18nService;
 import com.infinite.i18n.service.I18nPropertiesLoaderService;
@@ -17,12 +16,10 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.Properties;
 
-import static com.infinite.common.dto.response.Response.code;
-import static com.infinite.common.dto.response.Response.message;
-
 @Service
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @RequiredArgsConstructor
+@Slf4j
 public class I18nPropertiesLoaderServiceImpl implements I18nPropertiesLoaderService {
 
     final I18nService i18nService;
@@ -40,12 +37,22 @@ public class I18nPropertiesLoaderServiceImpl implements I18nPropertiesLoaderServ
             String filePathWithLanguage = String.format("%s_%s.properties", 
                 propertiesFilePath, language);
             
+            log.info("Loading properties from: {}", filePathWithLanguage);
             
             ClassPathResource resource = new ClassPathResource(filePathWithLanguage);
+            
+            if (!resource.exists()) {
+                log.error("Properties file not found: {}", filePathWithLanguage);
+                return ApiResponse.builder()
+                        .code(1001)
+                        .message("Không tìm thấy file properties: " + filePathWithLanguage)
+                        .build();
+            }
             
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(resource.getInputStream()))) {
                 properties.load(reader);
+                log.info("Loaded {} properties from file", properties.size());
             }
             
             // Load each property to database
@@ -53,7 +60,10 @@ public class I18nPropertiesLoaderServiceImpl implements I18nPropertiesLoaderServ
                 String key = (String) keyObj;
                 String messageValue = properties.getProperty(key);
                 
+                log.debug("Processing key: {} = {}", key, messageValue);
+                
                 if (key.startsWith("#") || messageValue == null || messageValue.trim().isEmpty()) {
+                    log.debug("Skipping key: {}", key);
                     continue;
                 }
                 
@@ -64,23 +74,33 @@ public class I18nPropertiesLoaderServiceImpl implements I18nPropertiesLoaderServ
                         .build();
                 
                 ApiResponse<Object> response = i18nService.saveMessage(language, entity);
-                if (response.getCode() == code(StatusCode.SUCCESS)) {
+                if (response.getCode() == 1000) {
                     count++;
+                    log.debug("Saved message: {}", key);
+                } else {
+                    log.warn("Failed to save message: {} - {}", key, response.getMessage());
                 }
             }
             
-
+            log.info("Successfully loaded {} messages for language: {}", count, language);
             
             return ApiResponse.builder()
-                    .code(code(StatusCode.SUCCESS))
-                    .message(message("i18n.properties.loaded"))
-                    .result(String.format("Loaded %d messages for language: %s", count, language))
+                    .code(1000)
+                    .message("SUCCESS")
+                    .result(String.format("Đã load %d message cho ngôn ngữ: %s", count, language))
                     .build();
         } catch (Exception e) {
+            log.error("Error loading from properties: ", e);
             return ApiResponse.builder()
-                    .code(code(StatusCode.BAD_REQUEST))
-                    .message("Error loading from properties: " + e.getMessage())
+                    .code(1001)
+                    .message("LỖI: " + e.getMessage())
                     .build();
         }
+    }
+
+    @Override
+    public ApiResponse<Object> loadPropertiesToDatabase(String language) {
+        // Same implementation as loadPropertiesFile but without caching
+        return loadPropertiesFile(language);
     }
 }
