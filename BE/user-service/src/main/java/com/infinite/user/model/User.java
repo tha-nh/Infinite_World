@@ -54,8 +54,8 @@ public class User {
     @Column(name = "PHONE_NUMBER", length = 20)
     private String phoneNumber;
 
-    @Size(max = 256)
-    @Column(name = "IMAGE_URL", length = 256)
+    @Size(max = 1000)
+    @Column(name = "IMAGE_URL", length = 1000)
     private String imageUrl;
 
     @NotNull

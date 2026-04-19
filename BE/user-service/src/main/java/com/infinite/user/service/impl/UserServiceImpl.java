@@ -10,6 +10,7 @@ import com.infinite.common.service.OtpService;
 import com.infinite.notification.service.EmailService;
 import com.infinite.notification.service.SmsService;
 import com.infinite.notification.service.WebSocketNotificationService;
+import com.infinite.user.client.FileClient;
 import com.infinite.user.dto.request.*;
 import com.infinite.user.dto.response.LoginResponse;
 import com.infinite.user.dto.response.UserDto;
@@ -28,6 +29,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -54,6 +56,7 @@ public class UserServiceImpl implements UserService {
     final EmailService emailService;
     final SmsService smsService;
     final WebSocketNotificationService webSocketService;
+    final FileClient fileClient;
 
     @org.springframework.beans.factory.annotation.Value("${app.base.url}")
     String appBaseUrl;
@@ -485,7 +488,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public ApiResponse<Object> create(UserRequest request) {
+    public ApiResponse<Object> create(UserRequest request, MultipartFile avatar) {
         ApiResponse<Object> checkRes = performChecks(request);
         if (checkRes != null) {
             return checkRes;
@@ -496,6 +499,7 @@ public class UserServiceImpl implements UserService {
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setName(request.getName());
         user.setEmail(request.getEmail());
+        user.setPhoneNumber(request.getPhoneNumber());
         user.setCreateBy(request.getNguoithuchien());
         user.setActive(Contant.IS_ACTIVE.INACTIVE);
 
@@ -514,6 +518,21 @@ public class UserServiceImpl implements UserService {
             }
         }
 
+        // Upload avatar if provided
+        if (avatar != null && !avatar.isEmpty()) {
+            try {
+                ApiResponse<com.infinite.common.dto.response.FileUploadResponse> uploadResult = 
+                    fileClient.uploadFile(avatar, "avatar", user.getId().toString());
+                
+                if (uploadResult.getCode() == code(SUCCESS)) {
+                    user.setImageUrl(uploadResult.getResult().getFileUrl());
+                    userRepository.save(user);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to upload avatar for user: {}", user.getUsername(), e);
+            }
+        }
+
         String verificationToken = otpService.generateOtp();
         otpService.storeOtp("email_verification_token:" + verificationToken, request.getEmail(),
                 OtpConstant.EMAIL_VERIFICATION_OTP_EXPIRATION_MINUTES, TimeUnit.MINUTES);
@@ -528,7 +547,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public ApiResponse<Object> update(UserRequest request) {
+    public ApiResponse<Object> update(UserRequest request, MultipartFile avatar) {
         ApiResponse<Object> checkRes = performChecks(request);
         if (checkRes != null) {
             return checkRes;
@@ -538,10 +557,12 @@ public class UserServiceImpl implements UserService {
 
         // Store old active status to check if changed
         Integer oldActive = user.getActive();
+        String oldImageUrl = user.getImageUrl();
 
         user.setUsername(request.getUsername());
         user.setName(request.getName());
         user.setEmail(request.getEmail());
+        user.setPhoneNumber(request.getPhoneNumber());
         user.setModifiedBy(request.getNguoithuchien());
 
         // Handle password update
@@ -563,6 +584,28 @@ public class UserServiceImpl implements UserService {
 
                 String verificationUrl = appBaseUrl + "/v1/api/auth/verify-email?token=" + verificationToken;
                 emailService.sendPasswordResetVerificationEmail(user.getEmail(), verificationUrl, Contant.PASSWORD_DEFAULT);
+            }
+        }
+
+        // Upload avatar if provided
+        if (avatar != null && !avatar.isEmpty()) {
+            try {
+                ApiResponse<com.infinite.common.dto.response.FileUploadResponse> uploadResult = 
+                    fileClient.uploadFile(avatar, "avatar", user.getId().toString());
+                
+                if (uploadResult.getCode() == code(SUCCESS)) {
+                    user.setImageUrl(uploadResult.getResult().getFileUrl());
+                    
+                    // Delete old avatar asynchronously
+                    if (oldImageUrl != null && !oldImageUrl.isEmpty()) {
+                        String oldFileName = extractFileNameFromUrl(oldImageUrl);
+                        if (oldFileName != null) {
+                            fileClient.deleteFileAsync(oldFileName, "avatar");
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Failed to upload avatar for user ID: {}", request.getId(), e);
             }
         }
 
@@ -773,5 +816,59 @@ public class UserServiceImpl implements UserService {
                 "    </div>" +
                 "</body>" +
                 "</html>";
+    }
+
+    @Override
+    public ApiResponse<Object> uploadAvatar(Long userId, MultipartFile file) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(StatusCode.DATA_NOT_EXISTED, message("auth.user.notfound")));
+        
+        // Upload file using file client (async for better performance)
+        ApiResponse<com.infinite.common.dto.response.FileUploadResponse> uploadResult = 
+            fileClient.uploadFile(file, "avatar", userId.toString());
+        
+        if (uploadResult.getCode() != code(SUCCESS)) {
+            return ApiResponse.builder()
+                    .code(uploadResult.getCode())
+                    .message(uploadResult.getMessage())
+                    .build();
+        }
+        
+        // Update user's imageUrl
+        String oldImageUrl = user.getImageUrl();
+        user.setImageUrl(uploadResult.getResult().getFileUrl());
+        userRepository.save(user);
+        
+        // Delete old avatar asynchronously (non-blocking)
+        if (oldImageUrl != null && !oldImageUrl.isEmpty()) {
+            try {
+                String oldFileName = extractFileNameFromUrl(oldImageUrl);
+                if (oldFileName != null) {
+                    fileClient.deleteFileAsync(oldFileName, "avatar");
+                }
+            } catch (Exception e) {
+                log.warn("Failed to delete old avatar: {}", oldImageUrl, e);
+            }
+        }
+        
+        return ApiResponse.builder()
+                .code(code(SUCCESS))
+                .message(message("user.avatar.upload.success"))
+                .result(uploadResult.getResult())
+                .build();
+    }
+    
+    private String extractFileNameFromUrl(String fileUrl) {
+        if (fileUrl == null || fileUrl.isEmpty()) {
+            return null;
+        }
+        
+        // Extract filename from URL like: http://localhost:8080/api/files/avatar/20241219_143022_abc123.jpg
+        String[] parts = fileUrl.split("/");
+        if (parts.length > 0) {
+            return parts[parts.length - 1];
+        }
+        
+        return null;
     }
 }

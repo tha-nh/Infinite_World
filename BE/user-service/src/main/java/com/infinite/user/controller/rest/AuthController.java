@@ -19,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping(path = "v1/api/auth", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -47,9 +48,13 @@ public class AuthController {
     }
 
     @Operation(summary = "Đăng ký tài khoản", description = "Đăng ký tài khoản mới và gửi email xác thực")
-    @PostMapping("/register")
-    public ApiResponse<Object> register(@RequestBody UserRequest request){
-        return userService.create(request);
+    @PostMapping(value = "/register", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<Object> register(
+            @RequestParam(value = "request") String requestJson,
+            @RequestParam(value = "avatar", required = false) MultipartFile avatar) throws Exception {
+        com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        UserRequest request = objectMapper.readValue(requestJson, UserRequest.class);
+        return userService.create(request, avatar);
     }
 
     @Operation(summary = "Xác thực email", description = "Xác thực email thông qua token trong email")

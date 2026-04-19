@@ -7,14 +7,25 @@ import org.springframework.stereotype.Component;
 @Component
 public class MessageUtils {
     private static MessageSource messageSource;
+    
     public MessageUtils(MessageSource messageSource) {
-        this.messageSource = messageSource;
+        MessageUtils.messageSource = messageSource;
     }
+    
     public static String getMessage(String key, Object... args) {
-        return messageSource.getMessage(
-                key,
-                args,
-                LocaleContextHolder.getLocale()
-        );
+        if (messageSource == null) {
+            // Return key if MessageSource not initialized yet
+            return key;
+        }
+        try {
+            return messageSource.getMessage(
+                    key,
+                    args,
+                    LocaleContextHolder.getLocale()
+            );
+        } catch (Exception e) {
+            // Return key if message not found
+            return key;
+        }
     }
 }

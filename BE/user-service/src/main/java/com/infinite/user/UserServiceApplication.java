@@ -16,6 +16,7 @@ import java.util.Optional;
 @Slf4j
 @EnableAspectJAutoProxy
 @EnableScheduling
+@org.springframework.scheduling.annotation.EnableAsync
 @SpringBootApplication(scanBasePackages = {"com.infinite.user", "com.infinite.common", "com.infinite.notification"})
 public class UserServiceApplication {
     public static void main(String[] args) {

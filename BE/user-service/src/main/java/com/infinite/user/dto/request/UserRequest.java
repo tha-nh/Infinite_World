@@ -15,6 +15,7 @@ public class UserRequest {
     String password;
     String name;
     String email;
+    String phoneNumber;
     String imageUrl;
     String nguoithuchien;
     List<Long> roleIds;

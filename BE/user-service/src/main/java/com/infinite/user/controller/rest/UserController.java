@@ -14,6 +14,9 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 @RestController
 @RequestMapping(path = "v1/api/user", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -30,15 +33,23 @@ public class UserController {
     }
 
     @Operation(summary = "Tạo user mới", description = "Tạo user mới (ADMIN)")
-    @PostMapping("/create")
-    public ApiResponse<Object> create(@RequestBody UserRequest request){
-        return userService.create(request);
+    @PostMapping(value = "/create", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<Object> create(
+            @RequestParam(value = "request") String requestJson,
+            @RequestParam(value = "avatar", required = false) MultipartFile avatar) throws Exception {
+        com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        UserRequest request = objectMapper.readValue(requestJson, UserRequest.class);
+        return userService.create(request, avatar);
     }
 
     @Operation(summary = "Cập nhật user", description = "Cập nhật thông tin user (ADMIN)")
-    @PostMapping("/update")
-    public ApiResponse<Object> update(@RequestBody UserRequest request){
-        return userService.update(request);
+    @PostMapping(value = "/update", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<Object> update(
+            @RequestParam(value = "request") String requestJson,
+            @RequestParam(value = "avatar", required = false) MultipartFile avatar) throws Exception {
+        com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        UserRequest request = objectMapper.readValue(requestJson, UserRequest.class);
+        return userService.update(request, avatar);
     }
 
     @Operation(summary = "Đổi mật khẩu user", description = "Admin đổi mật khẩu cho user")
@@ -51,6 +62,14 @@ public class UserController {
     @PostMapping("/reset-password/{userId}")
     public ApiResponse<Object> resetPasswordToDefault(@PathVariable Long userId){
         return userService.resetPassword(userId);
+    }
+
+    @Operation(summary = "Upload avatar", description = "Upload ảnh đại diện cho user")
+    @PostMapping("/upload-avatar/{userId}")
+    public ApiResponse<Object> uploadAvatar(
+            @PathVariable Long userId,
+            @RequestParam("file") MultipartFile file){
+        return userService.uploadAvatar(userId, file);
     }
 
     @Operation(summary = "Khóa user", description = "ADMIN khóa user tạm thời hoặc vĩnh viễn")

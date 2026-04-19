@@ -16,9 +16,12 @@ public class I18n {
     }
 
     public static String msg(String key, String language) {
-        I18nRedisClient redisClient = SpringContextHolder.getBean(I18nRedisClient.class);
         try {
+            I18nRedisClient redisClient = SpringContextHolder.getBean(I18nRedisClient.class);
             return redisClient.getMessage(key, language);
+        } catch (IllegalStateException e) {
+            // ApplicationContext not initialized yet, return key
+            return key;
         } catch (Exception e) {
             return key;
         }
