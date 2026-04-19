@@ -1,12 +1,10 @@
 package com.infinite.gateway.filter;
 
 import com.infinite.gateway.filter.auth.AuthnFilter;
-import com.infinite.gateway.filter.auth.AuthzFilter;
 import com.infinite.gateway.model.AuthorizationConfig;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -17,14 +15,10 @@ public class AuthorizationFilter
         extends AbstractGatewayFilterFactory<AuthorizationConfig> {
 
     private final AuthnFilter authnFilter;
-    private final AuthzFilter authzFilter;
 
-    public AuthorizationFilter(
-            AuthnFilter authnFilter,
-            AuthzFilter authzFilter) {
+    public AuthorizationFilter(AuthnFilter authnFilter) {
         super(AuthorizationConfig.class);
         this.authnFilter = authnFilter;
-        this.authzFilter = authzFilter;
     }
 
     @Override
@@ -36,19 +30,12 @@ public class AuthorizationFilter
     public GatewayFilter apply(AuthorizationConfig config) {
         return (exchange, chain) -> {
             List<String> auths = config.getAuth();
-            List<String> roles = config.getRoles();
             if (auths.contains("public")) {
                 return chain.filter(exchange);
             }
             if (auths.contains("authn")) {
                 if (!authnFilter.apply(exchange)) {
                     return authnFilter.writeUnauthorizedResponse(exchange);
-                }
-            }
-            if (auths.contains("authz")) {
-                if (!authzFilter.apply(exchange, roles)) {
-                    exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
-                    return exchange.getResponse().setComplete();
                 }
             }
             return chain.filter(exchange);

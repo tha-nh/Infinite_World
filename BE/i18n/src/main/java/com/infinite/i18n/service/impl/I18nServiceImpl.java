@@ -1,6 +1,6 @@
 package com.infinite.i18n.service.impl;
 
-import com.infinite.i18n.dto.response.ApiResponse;
+import com.infinite.common.dto.response.ApiResponse;
 import com.infinite.i18n.dto.response.I18nPageResponse;
 import com.infinite.i18n.dto.response.I18nTreeNode;
 import com.infinite.i18n.model.I18nMessage;
@@ -717,10 +717,6 @@ public class I18nServiceImpl implements I18nService {
     public ApiResponse<I18nPageResponse> getMessagesTreeFromDb(String language, Integer page, Integer size, 
                                                                String searchKey, String searchMessage) {
         try {
-            // Validate parameters
-            if (page < 1) page = 1;
-            if (size < 1 || size > 100) size = 20;
-            
             String tableName = defaultSchema + ".i18n_" + language;
             
             // Build search conditions
@@ -767,10 +763,6 @@ public class I18nServiceImpl implements I18nService {
     public ApiResponse<I18nPageResponse> getMessagesTreeFromRedis(String language, Integer page, Integer size, 
                                                                   String searchKey, String searchMessage) {
         try {
-            // Validate parameters
-            if (page < 1) page = 1;
-            if (size < 1 || size > 100) size = 20;
-            
             // Get all Redis keys for this language
             String pattern = cachePrefix + language + ":*";
             Set<String> redisKeys = redisTemplate.keys(pattern);

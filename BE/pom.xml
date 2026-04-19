@@ -12,7 +12,7 @@
 
     <groupId>com.infinite</groupId>
     <artifactId>infinite-world</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>infinite-world</name>
@@ -20,6 +20,7 @@
     <modules>
         <module>common</module>
         <module>notification</module>
+        <module>i18n</module>
         <module>user-service</module>
         <module>gateway</module>
     </modules>

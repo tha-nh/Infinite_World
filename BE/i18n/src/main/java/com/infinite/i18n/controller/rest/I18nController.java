@@ -1,6 +1,6 @@
 package com.infinite.i18n.controller.rest;
 
-import com.infinite.i18n.dto.response.ApiResponse;
+import com.infinite.common.dto.response.ApiResponse;
 import com.infinite.i18n.dto.response.I18nPageResponse;
 import com.infinite.i18n.dto.request.I18nMessageRequest;
 import com.infinite.i18n.model.I18nMessage;
@@ -103,18 +103,18 @@ public class I18nController {
         return i18nService.clearCacheByLanguages(languages);
     }
 
-    @Operation(summary = "Load messages từ properties file", description = "Load messages từ file properties vào memory")
-    @PostMapping("/load-from-properties")
-    public ApiResponse<Object> loadFromProperties(
-            @RequestParam String language) {
-        return propertiesLoaderService.loadPropertiesFile(language);
-    }
-
-    @Operation(summary = "Load properties vào database", description = "Load messages từ file properties vào database")
+    @Operation(summary = "Load properties vào database", description = "Load messages từ file properties vào database (không cache)")
     @PostMapping("/load-properties-to-db")
     public ApiResponse<Object> loadPropertiesToDatabase(
             @RequestParam String language) {
         return propertiesLoaderService.loadPropertiesToDatabase(language);
+    }
+
+    @Operation(summary = "Load properties vào database và cache", description = "Load messages từ file properties vào database và Redis cache")
+    @PostMapping("/load-properties")
+    public ApiResponse<Object> loadProperties(
+            @RequestParam String language) {
+        return propertiesLoaderService.loadPropertiesToDatabaseAndCache(language);
     }
 
     @Operation(summary = "Load database vào cache", description = "Load tất cả messages từ database vào Redis cache")
@@ -137,14 +137,14 @@ public class I18nController {
             i18nService.createTableIfNotExists(language);
             return ApiResponse.builder()
                     .code(1000)
-                    .message("SUCCESS")
-                    .result("Tạo bảng i18n_" + language + " thành công")
+                    .message(com.infinite.common.util.MessageUtils.getMessage("SUCCESS"))
+                    .result(com.infinite.common.util.MessageUtils.getMessage("i18n.table.created", language))
                     .build();
         } catch (Exception e) {
             return ApiResponse.builder()
                     .code(1001)
-                    .message("BAD_REQUEST")
-                    .result("Lỗi khi tạo bảng: " + e.getMessage())
+                    .message(com.infinite.common.util.MessageUtils.getMessage("BAD_REQUEST"))
+                    .result(com.infinite.common.util.MessageUtils.getMessage("i18n.table.create.error", e.getMessage()))
                     .build();
         }
     }

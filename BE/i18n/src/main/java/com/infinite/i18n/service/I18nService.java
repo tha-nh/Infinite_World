@@ -1,6 +1,6 @@
 package com.infinite.i18n.service;
 
-import com.infinite.i18n.dto.response.ApiResponse;
+import com.infinite.common.dto.response.ApiResponse;
 import com.infinite.i18n.dto.response.I18nPageResponse;
 import com.infinite.i18n.model.I18nMessage;
 

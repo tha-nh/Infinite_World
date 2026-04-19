@@ -65,7 +65,7 @@ gateway:
           ]
         - Method=GET,POST,PUT,DELETE,OPTIONS
       filters:
-        - Authorization=authz
+        - Authorization=authn
         - Role=ADMIN
 
     - id: i18n
@@ -76,5 +76,5 @@ gateway:
           ]
         - Method=GET,POST,PUT,DELETE,OPTIONS
       filters:
-        - Authorization=authn,authz
+        - Authorization=authn
         - Role=ADMIN

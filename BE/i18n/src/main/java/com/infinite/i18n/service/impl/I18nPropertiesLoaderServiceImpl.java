@@ -1,6 +1,7 @@
 package com.infinite.i18n.service.impl;
 
-import com.infinite.i18n.dto.response.ApiResponse;
+import com.infinite.common.dto.response.ApiResponse;
+import com.infinite.common.util.MessageUtils;
 import com.infinite.i18n.model.I18nMessage;
 import com.infinite.i18n.service.I18nService;
 import com.infinite.i18n.service.I18nPropertiesLoaderService;
@@ -28,7 +29,7 @@ public class I18nPropertiesLoaderServiceImpl implements I18nPropertiesLoaderServ
     private String propertiesFilePath;
 
     @Override
-    public ApiResponse<Object> loadPropertiesFile(String language) {
+    public ApiResponse<Object> loadPropertiesToDatabase(String language) {
         int count = 0;
         
         try {
@@ -45,7 +46,7 @@ public class I18nPropertiesLoaderServiceImpl implements I18nPropertiesLoaderServ
                 log.error("Properties file not found: {}", filePathWithLanguage);
                 return ApiResponse.builder()
                         .code(1001)
-                        .message("Không tìm thấy file properties: " + filePathWithLanguage)
+                        .message(MessageUtils.getMessage("i18n.properties.file.not.found", filePathWithLanguage))
                         .build();
             }
             
@@ -55,7 +56,6 @@ public class I18nPropertiesLoaderServiceImpl implements I18nPropertiesLoaderServ
                 log.info("Loaded {} properties from file", properties.size());
             }
             
-            // Load each property to database
             for (Object keyObj : properties.keySet()) {
                 String key = (String) keyObj;
                 String messageValue = properties.getProperty(key);
@@ -76,31 +76,51 @@ public class I18nPropertiesLoaderServiceImpl implements I18nPropertiesLoaderServ
                 ApiResponse<Object> response = i18nService.saveMessage(language, entity);
                 if (response.getCode() == 1000) {
                     count++;
-                    log.debug("Saved message: {}", key);
+                    log.debug("Saved message to DB: {}", key);
                 } else {
                     log.warn("Failed to save message: {} - {}", key, response.getMessage());
                 }
             }
             
-            log.info("Successfully loaded {} messages for language: {}", count, language);
+            log.info("Successfully loaded {} messages to database for language: {}", count, language);
             
             return ApiResponse.builder()
                     .code(1000)
-                    .message("SUCCESS")
-                    .result(String.format("Đã load %d message cho ngôn ngữ: %s", count, language))
+                    .message(MessageUtils.getMessage("SUCCESS"))
+                    .result(MessageUtils.getMessage("i18n.properties.loaded.count", String.valueOf(count), language))
                     .build();
         } catch (Exception e) {
             log.error("Error loading from properties: ", e);
             return ApiResponse.builder()
                     .code(1001)
-                    .message("LỖI: " + e.getMessage())
+                    .message(MessageUtils.getMessage("i18n.properties.load.error") + ": " + e.getMessage())
                     .build();
         }
     }
 
     @Override
-    public ApiResponse<Object> loadPropertiesToDatabase(String language) {
-        // Same implementation as loadPropertiesFile but without caching
-        return loadPropertiesFile(language);
+    public ApiResponse<Object> loadPropertiesToDatabaseAndCache(String language) {
+        ApiResponse<Object> dbResult = loadPropertiesToDatabase(language);
+        
+        if (dbResult.getCode() != 1000) {
+            return dbResult;
+        }
+        
+        log.info("Loading from database to Redis cache for language: {}", language);
+        ApiResponse<Object> cacheResult = i18nService.loadDatabaseToCache(language);
+        
+        if (cacheResult.getCode() == 1000) {
+            return ApiResponse.builder()
+                    .code(1000)
+                    .message(MessageUtils.getMessage("SUCCESS"))
+                    .result(MessageUtils.getMessage("i18n.properties.loaded.with.cache", language))
+                    .build();
+        }
+        
+        return ApiResponse.builder()
+                .code(1000)
+                .message(MessageUtils.getMessage("SUCCESS"))
+                .result(MessageUtils.getMessage("i18n.properties.loaded.cache.failed", cacheResult.getMessage()))
+                .build();
     }
 }
