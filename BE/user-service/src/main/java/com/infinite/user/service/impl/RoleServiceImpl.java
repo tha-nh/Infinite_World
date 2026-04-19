@@ -116,6 +116,11 @@ public class RoleServiceImpl implements RoleService {
     }
     
     @Override
+    public Role findByName(String name) {
+        return roleRepository.findByName(name).orElse(null);
+    }
+    
+    @Override
     public ApiResponse<Object> searchRoles(SearchRequest request, Pageable pageable) {
         Page<Role> roles = roleRepository.findAll(pageable);
         

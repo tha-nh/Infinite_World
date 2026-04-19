@@ -34,6 +34,10 @@ public class AuthnFilter {
     private String jwtSecret;
 
     public boolean apply(ServerWebExchange exchange) {
+        return apply(exchange, null);
+    }
+
+    public boolean apply(ServerWebExchange exchange, List<String> requiredRoles) {
         String auth = exchange.getRequest()
                 .getHeaders()
                 .getFirst("Authorization");
@@ -59,6 +63,15 @@ public class AuthnFilter {
             @SuppressWarnings("unchecked")
             List<String> rolesList = claims.get("roles", List.class);
             Set<String> roles = rolesList != null ? Set.copyOf(rolesList) : Set.of();
+            
+            // Check required roles if specified
+            if (requiredRoles != null && !requiredRoles.isEmpty()) {
+                boolean hasRequiredRole = requiredRoles.stream()
+                        .anyMatch(roles::contains);
+                if (!hasRequiredRole) {
+                    return false;
+                }
+            }
             
             // Add user info to request headers for downstream services
             exchange.getRequest().mutate()

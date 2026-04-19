@@ -30,14 +30,26 @@ public class AuthorizationFilter
     public GatewayFilter apply(AuthorizationConfig config) {
         return (exchange, chain) -> {
             List<String> auths = config.getAuth();
+            List<String> roles = config.getRoles();
+            
             if (auths.contains("public")) {
                 return chain.filter(exchange);
             }
+            
             if (auths.contains("authn")) {
-                if (!authnFilter.apply(exchange)) {
-                    return authnFilter.writeUnauthorizedResponse(exchange);
+                // Nếu có roles được chỉ định, kiểm tra roles
+                // Nếu không có roles, chỉ kiểm tra token
+                if (roles != null && !roles.isEmpty()) {
+                    if (!authnFilter.apply(exchange, roles)) {
+                        return authnFilter.writeUnauthorizedResponse(exchange);
+                    }
+                } else {
+                    if (!authnFilter.apply(exchange)) {
+                        return authnFilter.writeUnauthorizedResponse(exchange);
+                    }
                 }
             }
+            
             return chain.filter(exchange);
         };
     }

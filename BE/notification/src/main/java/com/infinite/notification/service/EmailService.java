@@ -11,4 +11,6 @@ public interface EmailService {
     void sendVerificationEmail(String email, String verificationUrl);
     
     void sendPasswordResetEmail(String email, String otp);
+    
+    void sendPasswordResetVerificationEmail(String email, String verificationUrl, String defaultPassword);
 }

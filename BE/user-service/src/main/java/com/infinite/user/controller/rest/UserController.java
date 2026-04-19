@@ -3,6 +3,7 @@ package com.infinite.user.controller.rest;
 import com.infinite.common.dto.request.SearchRequest;
 import com.infinite.common.dto.response.ApiResponse;
 import com.infinite.user.dto.request.ChangePasswordRequest;
+import com.infinite.user.dto.request.LockUserRequest;
 import com.infinite.user.dto.request.UserRequest;
 import com.infinite.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -50,5 +51,17 @@ public class UserController {
     @PostMapping("/reset-password/{userId}")
     public ApiResponse<Object> resetPasswordToDefault(@PathVariable Long userId){
         return userService.resetPassword(userId);
+    }
+
+    @Operation(summary = "Khóa user", description = "ADMIN khóa user tạm thời hoặc vĩnh viễn")
+    @PostMapping("/lock")
+    public ApiResponse<Object> lockUser(@RequestBody LockUserRequest request){
+        return userService.lockUser(request);
+    }
+
+    @Operation(summary = "Mở khóa user", description = "ADMIN mở khóa user")
+    @PostMapping("/unlock/{userId}")
+    public ApiResponse<Object> unlockUser(@PathVariable Long userId, @RequestParam String nguoithuchien){
+        return userService.unlockUser(userId, nguoithuchien);
     }
 }

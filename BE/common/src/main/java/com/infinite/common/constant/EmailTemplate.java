@@ -32,4 +32,17 @@ public final class EmailTemplate {
     public static final String VERIFICATION_COPYRIGHT = "email.verification.copyright";
     
     public static final String VERIFICATION_CONTENT = "email.verification.content";
+    
+    // Password Reset Verification Email Templates
+    public static final String PASSWORD_RESET_VERIFICATION_SUBJECT = "password.reset.verification.subject";
+    public static final String PASSWORD_RESET_VERIFICATION_CONTENT = "password.reset.verification.content";
+    public static final String PASSWORD_RESET_DEFAULT_PASSWORD = "password.reset.default.password";
+    public static final String PASSWORD_RESET_WARNING_TITLE = "password.reset.warning.title";
+    public static final String PASSWORD_RESET_WARNING_CONTENT = "password.reset.warning.content";
+    public static final String PASSWORD_RESET_VERIFICATION_ACTION = "password.reset.verification.action";
+    
+    // Reuse existing verification templates
+    public static final String EMAIL_VERIFICATION_APPROVE = "email.verification.button.approve";
+    public static final String EMAIL_VERIFICATION_REJECT = "email.verification.button.reject";
+    public static final String EMAIL_VERIFICATION_FOOTER = "email.verification.footer";
 }

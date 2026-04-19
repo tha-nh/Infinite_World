@@ -9,6 +9,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -32,6 +34,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
                 )
                 FROM User u
                 WHERE (u.active IS NOT NULL)
+                  AND u.isDelete = false
                   AND (COALESCE(:searchKey, '') = ''
                        OR LOWER(u.username) LIKE LOWER(CONCAT('%', :searchKey, '%'))
                        OR LOWER(u.name) LIKE LOWER(CONCAT('%', :searchKey, '%'))
@@ -66,9 +69,37 @@ public interface UserRepository extends JpaRepository<User, Long> {
             @Param("id") Long id,
             @Param("email") String email);
 
-    Optional<User> findByUsername(String username);
+    @Query("""
+            SELECT u
+            FROM User u
+            WHERE u.username = :username
+              AND u.isDelete = false
+            """)
+    Optional<User> findByUsername(@Param("username") String username);
     
-    Optional<User> findByEmail(String email);
+    @Query("""
+            SELECT u
+            FROM User u
+            WHERE u.email = :email
+              AND u.isDelete = false
+            """)
+    Optional<User> findByEmail(@Param("email") String email);
     
-    Optional<User> findByPhoneNumber(String phoneNumber);
+    @Query("""
+            SELECT u
+            FROM User u
+            WHERE u.phoneNumber = :phoneNumber
+              AND u.isDelete = false
+            """)
+    Optional<User> findByPhoneNumber(@Param("phoneNumber") String phoneNumber);
+    
+    @Query("""
+            SELECT u
+            FROM User u
+            WHERE u.active = :lockedStatus
+              AND u.lockTime IS NOT NULL
+              AND u.lockTime <= :currentTime
+              AND u.isDelete = false
+            """)
+    List<User> findLockedUsersToUnlock(@Param("currentTime") LocalDateTime currentTime, @Param("lockedStatus") int lockedStatus);
 }

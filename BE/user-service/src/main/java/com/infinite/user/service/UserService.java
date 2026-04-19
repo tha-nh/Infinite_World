@@ -21,4 +21,8 @@ public interface UserService {
     ApiResponse<Object> create(UserRequest request);
     ApiResponse<Object> update(UserRequest request);
     ApiResponse<Object> searchUsers(SearchRequest request, Pageable pageable);
+    
+    ApiResponse<Object> lockUser(LockUserRequest request);
+    
+    ApiResponse<Object> unlockUser(Long userId, String nguoithuchien);
 }

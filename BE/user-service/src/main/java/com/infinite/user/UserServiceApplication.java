@@ -6,6 +6,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.core.env.Environment;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -14,6 +15,7 @@ import java.util.Optional;
 
 @Slf4j
 @EnableAspectJAutoProxy
+@EnableScheduling
 @SpringBootApplication(scanBasePackages = {"com.infinite.user", "com.infinite.common", "com.infinite.notification"})
 public class UserServiceApplication {
     public static void main(String[] args) {

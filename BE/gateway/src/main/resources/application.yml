@@ -55,7 +55,17 @@ gateway:
           ]
         - Method=GET,POST,PUT,DELETE,OPTIONS
       filters:
-        - Authorization=authn
+        - Authorization=authn,roles:ADMIN
+
+    - id: roles
+      uri: ${USER_SERVICE}
+      predicates:
+        - Path=[
+            "/v1/api/roles/**"
+          ]
+        - Method=GET,POST,PUT,DELETE,OPTIONS
+      filters:
+        - Authorization=authn,roles:ADMIN
 
     - id: admin
       uri: ${USER_SERVICE}
@@ -65,8 +75,7 @@ gateway:
           ]
         - Method=GET,POST,PUT,DELETE,OPTIONS
       filters:
-        - Authorization=authn
-        - Role=ADMIN
+        - Authorization=authn,roles:ADMIN
 
     - id: i18n
       uri: ${I18N_SERVICE}
@@ -76,5 +85,4 @@ gateway:
           ]
         - Method=GET,POST,PUT,DELETE,OPTIONS
       filters:
-        - Authorization=authn
-        - Role=ADMIN
+        - Authorization=authn,roles:ADMIN

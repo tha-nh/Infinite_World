@@ -2,6 +2,7 @@ package com.infinite.user.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.infinite.common.util.Constants;
+import com.infinite.user.util.Contant;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
@@ -59,7 +60,7 @@ public class User {
 
     @NotNull
     @Column(name = "ACTIVE", nullable = false)
-    private Integer active = 0;
+    private Integer active = Contant.IS_ACTIVE.INACTIVE;
 
     @Column(name = "LOCK_TIME")
     private LocalDateTime lockTime;

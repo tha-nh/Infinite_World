@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @Builder
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -17,4 +19,14 @@ public class UserDto {
     private String name;
     private String email;
     private Integer active;
+    private List<String> roles;
+    
+    // Constructor for JPA query (without roles)
+    public UserDto(Long id, String username, String name, String email, Integer active) {
+        this.id = id;
+        this.username = username;
+        this.name = name;
+        this.email = email;
+        this.active = active;
+    }
 }
