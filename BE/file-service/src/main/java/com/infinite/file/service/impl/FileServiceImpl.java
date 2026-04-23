@@ -39,7 +39,10 @@ public class FileServiceImpl implements FileService {
             }
             
             if (!isValidFile(file)) {
-                throw new AppException(StatusCode.BAD_REQUEST, "Invalid file type");
+                String fileExtension = getFileExtension(file.getOriginalFilename());
+                String allowedTypesStr = String.join(", ", fileConfig.getAllowedTypes());
+                throw new AppException(StatusCode.BAD_REQUEST, 
+                    String.format("Invalid file type: .%s. Allowed types: %s", fileExtension, allowedTypesStr));
             }
             
             if (file.getSize() > fileConfig.getMaxFileSize()) {
