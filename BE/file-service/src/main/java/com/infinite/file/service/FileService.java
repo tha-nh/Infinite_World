@@ -19,4 +19,6 @@ public interface FileService {
     boolean isVideoFile(MultipartFile file);
     
     boolean isDocumentFile(MultipartFile file);
+    
+    boolean isArchiveFile(MultipartFile file);
 }

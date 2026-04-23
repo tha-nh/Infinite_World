@@ -23,6 +23,24 @@ public class FileConfig {
     @Value("${file.upload.max-size:52428800}") // 50MB default
     private long maxFileSize;
     
+    @Value("${file.upload.max-size.images:10485760}") // 10MB for images
+    private long maxImageSize;
+    
+    @Value("${file.upload.max-size.avatar:5242880}") // 5MB for avatar
+    private long maxAvatarSize;
+    
+    @Value("${file.upload.max-size.videos:104857600}") // 100MB for videos
+    private long maxVideoSize;
+    
+    @Value("${file.upload.max-size.documents:20971520}") // 20MB for documents
+    private long maxDocumentSize;
+    
+    @Value("${file.upload.max-size.archives:52428800}") // 50MB for archives
+    private long maxArchiveSize;
+    
+    @Value("${file.upload.max-size.default:52428800}") // 50MB default
+    private long maxDefaultSize;
+    
     @Value("${file.upload.allowed-types:jpg,jpeg,png,gif,mp4,avi,mov,pdf,doc,docx}")
     private String allowedTypes;
     
@@ -40,6 +58,30 @@ public class FileConfig {
     
     public long getMaxFileSize() {
         return maxFileSize;
+    }
+    
+    public long getMaxImageSize() {
+        return maxImageSize;
+    }
+    
+    public long getMaxAvatarSize() {
+        return maxAvatarSize;
+    }
+    
+    public long getMaxVideoSize() {
+        return maxVideoSize;
+    }
+    
+    public long getMaxDocumentSize() {
+        return maxDocumentSize;
+    }
+    
+    public long getMaxArchiveSize() {
+        return maxArchiveSize;
+    }
+    
+    public long getMaxDefaultSize() {
+        return maxDefaultSize;
     }
     
     public String[] getAllowedTypes() {

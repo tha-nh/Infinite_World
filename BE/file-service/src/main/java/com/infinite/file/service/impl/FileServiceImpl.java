@@ -35,19 +35,18 @@ public class FileServiceImpl implements FileService {
         try {
             // Validate file
             if (file.isEmpty()) {
-                throw new AppException(StatusCode.BAD_REQUEST, "File is empty");
+                throw new AppException(StatusCode.BAD_REQUEST, message("file.empty"));
             }
             
             if (!isValidFile(file)) {
                 String fileExtension = getFileExtension(file.getOriginalFilename());
                 String allowedTypesStr = String.join(", ", fileConfig.getAllowedTypes());
                 throw new AppException(StatusCode.BAD_REQUEST, 
-                    String.format("Invalid file type: .%s. Allowed types: %s", fileExtension, allowedTypesStr));
+                    String.format(message("file.invalid.type"), fileExtension, allowedTypesStr));
             }
             
-            if (file.getSize() > fileConfig.getMaxFileSize()) {
-                throw new AppException(StatusCode.BAD_REQUEST, "File size exceeds maximum limit");
-            }
+            // Validate file type and size based on category
+            validateFileTypeByCategory(file, category);
             
             // Ensure bucket exists
             ensureBucketExists();
@@ -79,7 +78,6 @@ public class FileServiceImpl implements FileService {
                     .build();
             
             log.info("File uploaded successfully to MinIO: {}", objectName);
-            
             return ApiResponse.<FileUploadResponse>builder()
                     .code(code(SUCCESS))
                     .message(message("file.upload.success"))
@@ -153,7 +151,7 @@ public class FileServiceImpl implements FileService {
     
     @Override
     public boolean isImageFile(MultipartFile file) {
-        String[] imageTypes = {"jpg", "jpeg", "png", "gif", "bmp", "webp"};
+        String[] imageTypes = {"jpg", "jpeg", "png", "gif", "bmp", "webp", "svg", "ico"};
         String fileExtension = getFileExtension(file.getOriginalFilename());
         
         return Arrays.stream(imageTypes)
@@ -171,10 +169,19 @@ public class FileServiceImpl implements FileService {
     
     @Override
     public boolean isDocumentFile(MultipartFile file) {
-        String[] documentTypes = {"pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt"};
+        String[] documentTypes = {"pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "csv"};
         String fileExtension = getFileExtension(file.getOriginalFilename());
         
         return Arrays.stream(documentTypes)
+                .anyMatch(type -> type.equalsIgnoreCase(fileExtension));
+    }
+    
+    @Override
+    public boolean isArchiveFile(MultipartFile file) {
+        String[] archiveTypes = {"zip", "rar", "7z"};
+        String fileExtension = getFileExtension(file.getOriginalFilename());
+        
+        return Arrays.stream(archiveTypes)
                 .anyMatch(type -> type.equalsIgnoreCase(fileExtension));
     }
     
@@ -207,5 +214,112 @@ public class FileServiceImpl implements FileService {
             return "";
         }
         return fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
+    }
+    
+    /**
+     * Validate file type and size based on category
+     * - images/avatar: only image files
+     * - videos: only video files
+     * - documents: only document files
+     * - archives: only archive files
+     */
+    private void validateFileTypeByCategory(MultipartFile file, String category) {
+        if (category == null) {
+            // Default validation for null category
+            if (file.getSize() > fileConfig.getMaxDefaultSize()) {
+                throw new AppException(StatusCode.BAD_REQUEST, 
+                    message("file.size.exceeded"));
+            }
+            return;
+        }
+        
+        String categoryLower = category.toLowerCase();
+        long maxSize;
+        
+        switch (categoryLower) {
+            case "images":
+                if (!isImageFile(file)) {
+                    throw new AppException(StatusCode.BAD_REQUEST, 
+                        message("file.category.images.only"));
+                }
+                maxSize = fileConfig.getMaxImageSize();
+                if (file.getSize() > maxSize) {
+                    throw new AppException(StatusCode.BAD_REQUEST, 
+                        String.format(message("file.size.exceeded.category"), formatFileSize(maxSize)));
+                }
+                break;
+                
+            case "avatar":
+                if (!isImageFile(file)) {
+                    throw new AppException(StatusCode.BAD_REQUEST, 
+                        message("file.category.images.only"));
+                }
+                maxSize = fileConfig.getMaxAvatarSize();
+                if (file.getSize() > maxSize) {
+                    throw new AppException(StatusCode.BAD_REQUEST, 
+                        String.format(message("file.size.exceeded.category"), formatFileSize(maxSize)));
+                }
+                break;
+                
+            case "videos":
+                if (!isVideoFile(file)) {
+                    throw new AppException(StatusCode.BAD_REQUEST, 
+                        message("file.category.videos.only"));
+                }
+                maxSize = fileConfig.getMaxVideoSize();
+                if (file.getSize() > maxSize) {
+                    throw new AppException(StatusCode.BAD_REQUEST, 
+                        String.format(message("file.size.exceeded.category"), formatFileSize(maxSize)));
+                }
+                break;
+                
+            case "documents":
+                if (!isDocumentFile(file)) {
+                    throw new AppException(StatusCode.BAD_REQUEST, 
+                        message("file.category.documents.only"));
+                }
+                maxSize = fileConfig.getMaxDocumentSize();
+                if (file.getSize() > maxSize) {
+                    throw new AppException(StatusCode.BAD_REQUEST, 
+                        String.format(message("file.size.exceeded.category"), formatFileSize(maxSize)));
+                }
+                break;
+                
+            case "archives":
+                if (!isArchiveFile(file)) {
+                    throw new AppException(StatusCode.BAD_REQUEST, 
+                        message("file.category.archives.only"));
+                }
+                maxSize = fileConfig.getMaxArchiveSize();
+                if (file.getSize() > maxSize) {
+                    throw new AppException(StatusCode.BAD_REQUEST, 
+                        String.format(message("file.size.exceeded.category"), formatFileSize(maxSize)));
+                }
+                break;
+                
+            default:
+                // Other categories: use default max size
+                maxSize = fileConfig.getMaxDefaultSize();
+                if (file.getSize() > maxSize) {
+                    throw new AppException(StatusCode.BAD_REQUEST, 
+                        message("file.size.exceeded"));
+                }
+                break;
+        }
+    }
+    
+    /**
+     * Format file size to human readable format
+     */
+    private String formatFileSize(long bytes) {
+        if (bytes < 1024) {
+            return bytes + " B";
+        } else if (bytes < 1024 * 1024) {
+            return String.format("%.2f KB", bytes / 1024.0);
+        } else if (bytes < 1024 * 1024 * 1024) {
+            return String.format("%.2f MB", bytes / (1024.0 * 1024.0));
+        } else {
+            return String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0));
+        }
     }
 }
