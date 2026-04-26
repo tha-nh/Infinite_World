@@ -79,7 +79,7 @@ messaging:
 
 # Application Configuration
 app:
-  base-url: ${APP_BASE_URL:http://localhost:8080}
+  base.url: ${APP_BASE_URL:http://localhost:8080}
 
 # Logging
 logging:

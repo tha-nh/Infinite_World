@@ -11,7 +11,11 @@ import java.util.UUID;
 
 /**
  * Account verification event - for registration confirmation
+ * 
+ * @deprecated Use {@link EmailNotificationEvent} with {@code emailType = REGISTRATION_VERIFICATION} instead.
+ * This event will be removed in a future version.
  */
+@Deprecated(since = "2.0", forRemoval = true)
 @Data
 @Builder
 @NoArgsConstructor

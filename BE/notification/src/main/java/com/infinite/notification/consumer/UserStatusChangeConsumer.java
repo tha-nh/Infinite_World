@@ -1,6 +1,5 @@
 package com.infinite.notification.consumer;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.infinite.common.dto.event.UserStatusChangeEvent;
 import com.infinite.notification.messaging.MessageConsumer;
 import com.infinite.notification.service.EmailService;
@@ -19,7 +18,11 @@ import java.util.Locale;
 
 /**
  * Kafka consumer for user status change notifications
+ * 
+ * @deprecated This consumer is deprecated. Use EmailNotificationConsumer with appropriate EmailType instead.
+ * Will be removed in a future version after migration is complete.
  */
+@Deprecated(since = "2.0", forRemoval = true)
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -27,7 +30,6 @@ import java.util.Locale;
 public class UserStatusChangeConsumer implements MessageConsumer {
     
     private final EmailService emailService;
-    private final ObjectMapper objectMapper;
     
     @KafkaListener(
         topics = "${messaging.topics.user-status-change:user.status.change}",

@@ -1,10 +1,17 @@
 package com.infinite.notification.service;
 
+import com.infinite.common.dto.event.EmailNotificationEvent;
 import com.infinite.notification.dto.request.EmailRequest;
 
 import java.time.LocalDateTime;
 
 public interface EmailService {
+    
+    /**
+     * Unified method to send templated email based on EmailType
+     * This is the new standard way to send emails
+     */
+    void sendTemplatedEmail(EmailNotificationEvent event);
     
     void sendEmail(EmailRequest request);
     

@@ -3,11 +3,13 @@ package com.infinite.user.service.impl;
 import com.infinite.common.constant.StatusCode;
 import com.infinite.common.dto.request.SearchRequest;
 import com.infinite.common.dto.response.ApiResponse;
+import com.infinite.common.dto.response.HtmlResultPageData;
 import com.infinite.common.dto.response.PageResponse;
 import com.infinite.common.exception.AppException;
 import com.infinite.common.constant.OtpConstant;
 import com.infinite.common.service.OtpService;
 import com.infinite.common.util.FileUrlBuilder;
+import com.infinite.common.util.HtmlResultPageRenderer;
 import com.infinite.common.dto.event.EmailNotificationEvent;
 import com.infinite.common.dto.event.SmsNotificationEvent;
 import com.infinite.common.dto.event.WebSocketNotificationEvent;
@@ -63,6 +65,7 @@ public class UserServiceImpl implements UserService {
     final NotificationPublisher notificationPublisher;
     final FileClient fileClient;
     final FileUrlConfig fileUrlConfig;
+    final HtmlResultPageRenderer htmlResultPageRenderer;
 
     @org.springframework.beans.factory.annotation.Value("${app.base.url}")
     String appBaseUrl;
@@ -92,6 +95,22 @@ public class UserServiceImpl implements UserService {
                 .imageUrl(fullImageUrl)
                 .roles(roleNames)
                 .build();
+
+        // Send login alert email if enabled and email exists
+        if (user.getEmail() != null && !user.getEmail().isEmpty()) {
+            try {
+                notificationPublisher.sendLoginAlertEmail(
+                    user.getEmail(),
+                    user.getId().toString(),
+                    user.getUsername(),
+                    request.getIpAddress(),
+                    request.getDevice()
+                );
+            } catch (Exception e) {
+                // Don't fail login if email sending fails
+                log.warn("Failed to send login alert email for user: {}", user.getUsername(), e);
+            }
+        }
 
         return ApiResponse.builder()
                 .code(StatusCode.SUCCESS.getCode())
@@ -340,81 +359,26 @@ public class UserServiceImpl implements UserService {
     }
 
     private String buildResultHtml(boolean success, String message, String lang) {
-        // Locale already set by caller, no need to set again
-        String title = success ?
-                message("email.verification.result.success.title") :
-                message("email.verification.result.error.title");
-        String subtitle = success ?
-                message("email.verification.result.success.subtitle") :
-                message("email.verification.result.error.subtitle");
-        String copyright = message("email.verification.copyright");
-
-        String gradient = success ?
-                "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" :
-                "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)";
-
-        String iconSvg = success ?
-                "<svg viewBox=\"0 0 24 24\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\" style=\"width: 100px; height: 100px;\">" +
-                        "    <circle cx=\"12\" cy=\"12\" r=\"10\" stroke=\"white\" stroke-width=\"2\" fill=\"none\"/>" +
-                        "    <path d=\"M8 12L11 15L16 9\" stroke=\"white\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>" +
-                        "</svg>" :
-                "<svg viewBox=\"0 0 24 24\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\" style=\"width: 100px; height: 100px;\">" +
-                        "    <circle cx=\"12\" cy=\"12\" r=\"10\" stroke=\"white\" stroke-width=\"2\" fill=\"none\"/>" +
-                        "    <path d=\"M8 8L16 16M16 8L8 16\" stroke=\"white\" stroke-width=\"2.5\" stroke-linecap=\"round\"/>" +
-                        "</svg>";
-
-        return "<!DOCTYPE html>" +
-                "<html>" +
-                "<head>" +
-                "    <meta charset=\"UTF-8\">" +
-                "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">" +
-                "    <title>" + title + "</title>" +
-                "    <style>" +
-                "        * { margin: 0; padding: 0; box-sizing: border-box; }" +
-                "        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: " + gradient + "; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }" +
-                "        .container { max-width: 500px; width: 100%; background: white; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; animation: slideUp 0.5s ease-out; }" +
-                "        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }" +
-                "        .header { background: " + gradient + "; padding: 50px 30px; text-align: center; position: relative; }" +
-                "        .icon-container { margin-bottom: 20px; animation: scaleIn 0.6s ease-out 0.2s both; }" +
-                "        @keyframes scaleIn { from { opacity: 0; transform: scale(0); } to { opacity: 1; transform: scale(1); } }" +
-                "        .header h1 { color: white; font-size: 32px; margin-bottom: 10px; font-weight: 600; }" +
-                "        .header p { color: rgba(255,255,255,0.9); font-size: 16px; }" +
-                "        .content { padding: 40px 30px; text-align: center; }" +
-                "        .message-box { background: #f8f9fa; padding: 25px; border-radius: 15px; border-left: 4px solid " + (success ? "#667eea" : "#f5576c") + "; }" +
-                "        .message-box p { color: #495057; font-size: 16px; line-height: 1.6; }" +
-                "        .footer { padding: 20px 30px; background: #f8f9fa; text-align: center; border-top: 1px solid #e9ecef; }" +
-                "        .footer p { color: #6c757d; font-size: 14px; }" +
-                "        .decorative-circle { position: absolute; border-radius: 50%; background: rgba(255,255,255,0.1); }" +
-                "        .circle-1 { width: 100px; height: 100px; top: -50px; right: -50px; }" +
-                "        .circle-2 { width: 150px; height: 150px; bottom: -75px; left: -75px; }" +
-                "        @media only screen and (max-width: 600px) {" +
-                "            .header h1 { font-size: 26px; }" +
-                "            .content { padding: 30px 20px; }" +
-                "        }" +
-                "    </style>" +
-                "</head>" +
-                "<body>" +
-                "    <div class=\"container\">" +
-                "        <div class=\"header\">" +
-                "            <div class=\"decorative-circle circle-1\"></div>" +
-                "            <div class=\"decorative-circle circle-2\"></div>" +
-                "            <div class=\"icon-container\">" +
-                "                " + iconSvg +
-                "            </div>" +
-                "            <h1>" + title + "</h1>" +
-                "            <p>" + subtitle + "</p>" +
-                "        </div>" +
-                "        <div class=\"content\">" +
-                "            <div class=\"message-box\">" +
-                "                <p>" + message + "</p>" +
-                "            </div>" +
-                "        </div>" +
-                "        <div class=\"footer\">" +
-                "            <p>" + copyright + "</p>" +
-                "        </div>" +
-                "    </div>" +
-                "</body>" +
-                "</html>";
+        // Set locale for message retrieval
+        LocaleContextHolder.setLocale(
+                "vi".equals(lang) ? Locale.forLanguageTag("vi") : Locale.ENGLISH
+        );
+        
+        HtmlResultPageData pageData = HtmlResultPageData.builder()
+                .success(success)
+                .title(success ? 
+                    message("email.verification.result.success.title") : 
+                    message("email.verification.result.error.title"))
+                .subtitle(success ? 
+                    message("email.verification.result.success.subtitle") : 
+                    message("email.verification.result.error.subtitle"))
+                .message(message)
+                .instruction(message("email.verification.copyright"))
+                .lang(lang)
+                .variant(success ? "success" : "error")
+                .build();
+                
+        return htmlResultPageRenderer.render(pageData);
     }
 
     @Override
@@ -586,19 +550,12 @@ public class UserServiceImpl implements UserService {
 
                 String verificationUrl = appBaseUrl + "/v1/api/auth/verify-email?token=" + verificationToken;
 
-                // Send password reset verification email via Kafka
-                EmailNotificationEvent event = EmailNotificationEvent.builder()
-                        .to(user.getEmail())
-                        .subject("Password Reset Verification")
-                        .content(verificationUrl)
-                        .userId(user.getId().toString())
-                        .metadata(Map.of(
-                                "type", "password_reset_verification",
-                                "verificationUrl", verificationUrl,
-                                "defaultPassword", Contant.PASSWORD_DEFAULT
-                        ))
-                        .build();
-                notificationPublisher.publishEmailNotification(event);
+                // Send password reset verification email via Kafka using new unified approach
+                notificationPublisher.sendPasswordResetVerificationEmail(
+                    user.getEmail(),
+                    user.getId().toString(),
+                    verificationUrl
+                );
             }
         }
 
@@ -777,91 +734,30 @@ public class UserServiceImpl implements UserService {
     }
 
     private String buildPasswordResetResultHtml(boolean success, String message, String defaultPassword, String lang) {
-        org.springframework.context.i18n.LocaleContextHolder.setLocale(
-                "vi".equals(lang) ? java.util.Locale.forLanguageTag("vi") : java.util.Locale.ENGLISH
+        // Set locale for message retrieval
+        LocaleContextHolder.setLocale(
+                "vi".equals(lang) ? Locale.forLanguageTag("vi") : Locale.ENGLISH
         );
-
-        String title = success ?
-                message("email.verification.result.success.title") :
-                message("email.verification.result.error.title");
-        String subtitle = success ?
-                message("password.reset.result.subtitle") :
-                message("email.verification.result.error.subtitle");
-        String copyright = message("email.verification.copyright");
-        String passwordLabel = message("password.reset.default.password");
-        String warningTitle = message("password.reset.warning.title");
-        String warningContent = message("password.reset.warning.content");
-
-        String gradient = success ?
-                "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" :
-                "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)";
-
-        String iconSvg = success ?
-                "<svg viewBox=\"0 0 24 24\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\" style=\"width: 100px; height: 100px;\">" +
-                        "    <circle cx=\"12\" cy=\"12\" r=\"10\" stroke=\"white\" stroke-width=\"2\" fill=\"none\"/>" +
-                        "    <path d=\"M8 12L11 15L16 9\" stroke=\"white\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>" +
-                        "</svg>" :
-                "<svg viewBox=\"0 0 24 24\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\" style=\"width: 100px; height: 100px;\">" +
-                        "    <circle cx=\"12\" cy=\"12\" r=\"10\" stroke=\"white\" stroke-width=\"2\" fill=\"none\"/>" +
-                        "    <path d=\"M8 8L16 16M16 8L8 16\" stroke=\"white\" stroke-width=\"2.5\" stroke-linecap=\"round\"/>" +
-                        "</svg>";
-
-        return "<!DOCTYPE html>" +
-                "<html>" +
-                "<head>" +
-                "    <meta charset=\"UTF-8\">" +
-                "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">" +
-                "    <title>" + title + "</title>" +
-                "    <style>" +
-                "        * { margin: 0; padding: 0; box-sizing: border-box; }" +
-                "        body { font-family: Arial, sans-serif; background: " + gradient + "; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }" +
-                "        .container { max-width: 500px; width: 100%; background: white; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); overflow: hidden; }" +
-                "        .header { background: " + gradient + "; padding: 40px 30px; text-align: center; }" +
-                "        .icon-container { margin-bottom: 20px; }" +
-                "        .header h1 { color: white; font-size: 28px; margin-bottom: 10px; font-weight: 600; }" +
-                "        .header p { color: rgba(255,255,255,0.9); font-size: 16px; }" +
-                "        .content { padding: 30px; text-align: center; }" +
-                "        .message-box { background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 25px; }" +
-                "        .message-box p { color: #495057; font-size: 16px; line-height: 1.6; }" +
-                "        .password-box { background: #e3f2fd; border: 2px solid #2196f3; border-radius: 10px; padding: 20px; margin: 20px 0; }" +
-                "        .password-label { color: #1976d2; font-size: 14px; font-weight: bold; margin-bottom: 10px; }" +
-                "        .password { font-size: 32px; font-weight: bold; color: #1976d2; font-family: monospace; letter-spacing: 2px; }" +
-                "        .warning-box { background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 15px; margin: 20px 0; text-align: left; }" +
-                "        .warning-title { color: #856404; font-weight: bold; margin-bottom: 8px; }" +
-                "        .warning-content { color: #856404; font-size: 14px; line-height: 1.5; }" +
-                "        .footer { padding: 20px 30px; background: #f8f9fa; text-align: center; border-top: 1px solid #e9ecef; }" +
-                "        .footer p { color: #6c757d; font-size: 14px; }" +
-                "    </style>" +
-                "</head>" +
-                "<body>" +
-                "    <div class=\"container\">" +
-                "        <div class=\"header\">" +
-                "            <div class=\"icon-container\">" +
-                "                " + iconSvg +
-                "            </div>" +
-                "            <h1>" + title + "</h1>" +
-                "            <p>" + subtitle + "</p>" +
-                "        </div>" +
-                "        <div class=\"content\">" +
-                "            <div class=\"message-box\">" +
-                "                <p>" + message + "</p>" +
-                "            </div>" +
-                (success ?
-                        "            <div class=\"password-box\">" +
-                                "                <div class=\"password-label\">" + passwordLabel + ":</div>" +
-                                "                <div class=\"password\">" + defaultPassword + "</div>" +
-                                "            </div>" +
-                                "            <div class=\"warning-box\">" +
-                                "                <div class=\"warning-title\">⚠️ " + warningTitle + "</div>" +
-                                "                <div class=\"warning-content\">" + warningContent + "</div>" +
-                                "            </div>" : "") +
-                "        </div>" +
-                "        <div class=\"footer\">" +
-                "            <p>" + copyright + "</p>" +
-                "        </div>" +
-                "    </div>" +
-                "</body>" +
-                "</html>";
+        
+        HtmlResultPageData pageData = HtmlResultPageData.builder()
+                .success(success)
+                .title(success ? 
+                    message("email.verification.result.success.title") : 
+                    message("email.verification.result.error.title"))
+                .subtitle(success ? 
+                    message("password.reset.result.subtitle") : 
+                    message("email.verification.result.error.subtitle"))
+                .message(message)
+                .extraLabel(success ? message("password.reset.default.password") : null)
+                .extraValue(success ? defaultPassword : null)
+                .instruction(success ? 
+                    message("password.reset.warning.title") + ": " + message("password.reset.warning.content") : 
+                    message("email.verification.copyright"))
+                .lang(lang)
+                .variant(success ? "success" : "error")
+                .build();
+                
+        return htmlResultPageRenderer.render(pageData);
     }
 
     @Override
@@ -983,33 +879,22 @@ public class UserServiceImpl implements UserService {
     }
 
     private String buildRegistrationResultHtml(boolean success, String messageText, String lang) {
-        String title = success ? message("email.registration.result.success") : message("email.registration.result.error");
-        String color = success ? "#28a745" : "#dc3545";
-        String homeBtn = message("email.registration.result.home");
-
-        return """
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="UTF-8">
-                    <title>%s</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
-                        .container { max-width: 600px; margin: 50px auto; background-color: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; }
-                        .title { color: %s; font-size: 28px; font-weight: bold; margin-bottom: 20px; }
-                        .message { font-size: 18px; line-height: 1.6; color: #333; margin-bottom: 30px; }
-                        .btn { display: inline-block; padding: 12px 30px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; }
-                        .btn:hover { background-color: #0056b3; }
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <div class="title">%s</div>
-                        <div class="message">%s</div>
-                        <a href="/" class="btn">%s</a>
-                    </div>
-                </body>
-                </html>
-                """.formatted(title, color, title, messageText, homeBtn);
+        // Set locale for message retrieval
+        LocaleContextHolder.setLocale(
+                "vi".equals(lang) ? Locale.forLanguageTag("vi") : Locale.ENGLISH
+        );
+        
+        HtmlResultPageData pageData = HtmlResultPageData.builder()
+                .success(success)
+                .title(success ? 
+                    message("email.registration.result.success") : 
+                    message("email.registration.result.error"))
+                .message(messageText)
+                .instruction(message("email.registration.result.close.instruction"))
+                .lang(lang)
+                .variant(success ? "success" : "error")
+                .build();
+                
+        return htmlResultPageRenderer.render(pageData);
     }
 }

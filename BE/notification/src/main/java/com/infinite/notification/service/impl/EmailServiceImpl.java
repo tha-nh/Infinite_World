@@ -1,7 +1,10 @@
 package com.infinite.notification.service.impl;
 
 import com.infinite.common.constant.EmailTemplate;
+import com.infinite.common.constant.EmailType;
 import com.infinite.common.constant.OtpConstant;
+import com.infinite.common.dto.event.EmailNotificationEvent;
+import com.infinite.common.util.DateTimeUtils;
 import com.infinite.common.util.MessageUtils;
 import com.infinite.notification.dto.request.EmailRequest;
 import com.infinite.notification.service.EmailService;
@@ -19,6 +22,7 @@ import jakarta.mail.internet.MimeMessage;
 
 import java.text.MessageFormat;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -31,8 +35,90 @@ public class EmailServiceImpl implements EmailService {
     @Value("${spring.mail.username}")
     private String fromEmail;
     
-    @Value("${app.base-url:http://localhost:8080}")
+    @Value("${app.base.url:http://localhost:8080}")
     private String appBaseUrl;
+
+    /**
+     * Unified method to send templated email based on EmailType
+     * This replaces the old pattern of checking metadata keys
+     */
+    @Override
+    @Async
+    public void sendTemplatedEmail(EmailNotificationEvent event) {
+        try {
+            if (event.getEmailType() == null) {
+                log.error("EmailType is null for event: {} - this should be handled by consumer fallback", event.getEventId());
+                throw new IllegalArgumentException("EmailType cannot be null - use legacy handling instead");
+            }
+            
+            String htmlContent;
+            String subject;
+            Map<String, Object> vars = event.getVariables();
+            
+            switch (event.getEmailType()) {
+                case LOGIN_OTP:
+                case FORGOT_PASSWORD_OTP:
+                case REGISTRATION_OTP:
+                    htmlContent = buildOtpEmailHtml(event.getEmailType(), vars);
+                    subject = getOtpSubject(event.getEmailType());
+                    break;
+                    
+                case REGISTRATION_VERIFICATION:
+                    htmlContent = buildRegistrationVerificationHtml(vars);
+                    subject = messageUtils.getMessage("email.account.verification.subject");
+                    break;
+                    
+                case PASSWORD_RESET_VERIFICATION:
+                    htmlContent = buildPasswordResetVerificationHtml(vars);
+                    subject = messageUtils.getMessage(EmailTemplate.PASSWORD_RESET_VERIFICATION_SUBJECT);
+                    break;
+                    
+                case USER_LOCKED:
+                    htmlContent = buildUserLockedHtml(vars);
+                    subject = messageUtils.getMessage("email.user.locked.subject");
+                    break;
+                    
+                case USER_UNLOCKED:
+                    htmlContent = buildUserUnlockedHtml(vars);
+                    subject = messageUtils.getMessage("email.user.unlocked.subject");
+                    break;
+                    
+                case USER_AUTO_UNLOCKED:
+                    htmlContent = buildUserAutoUnlockedHtml(vars);
+                    subject = messageUtils.getMessage("email.user.auto.unlocked.subject");
+                    break;
+                    
+                case USER_UPDATED:
+                    htmlContent = buildUserUpdatedHtml(vars);
+                    subject = messageUtils.getMessage("email.user.updated.subject");
+                    break;
+                    
+                case LOGIN_ALERT:
+                    htmlContent = buildLoginAlertHtml(vars);
+                    subject = messageUtils.getMessage("email.login.alert.subject");
+                    break;
+                    
+                default:
+                    log.error("Unsupported email type: {}", event.getEmailType());
+                    throw new IllegalArgumentException("Unsupported email type: " + event.getEmailType());
+            }
+            
+            EmailRequest request = EmailRequest.builder()
+                .to(event.getTo())
+                .subject(subject)
+                .content(htmlContent)
+                .isHtml(true)
+                .build();
+                
+            sendEmail(request);
+            log.info("Templated email sent successfully to: {} with type: {}", event.getTo(), event.getEmailType());
+            
+        } catch (Exception e) {
+            log.error("Failed to send templated email to: {} with type: {}", 
+                event.getTo(), event.getEmailType(), e);
+            throw new RuntimeException("Failed to send templated email", e);
+        }
+    }
 
     @Async
     @Override
@@ -519,5 +605,202 @@ public class EmailServiceImpl implements EmailService {
             </html>
             """, title, title, greeting, username, message, approveUrl, approveBtn, rejectUrl, rejectBtn, 
             noteTitle, noteApprove, noteReject, footer, footerIgnore);
+    }
+    
+    // ========== NEW UNIFIED TEMPLATE BUILDERS ==========
+    
+    private String getOtpSubject(EmailType emailType) {
+        return switch (emailType) {
+            case FORGOT_PASSWORD_OTP -> messageUtils.getMessage(EmailTemplate.OTP_SUBJECT_FORGOT_PASSWORD);
+            case REGISTRATION_OTP -> messageUtils.getMessage(EmailTemplate.OTP_SUBJECT_REGISTRATION);
+            case LOGIN_OTP -> messageUtils.getMessage(EmailTemplate.OTP_SUBJECT_LOGIN);
+            default -> messageUtils.getMessage(EmailTemplate.OTP_SUBJECT_VERIFICATION);
+        };
+    }
+    
+    private String buildOtpEmailHtml(EmailType emailType, Map<String, Object> vars) {
+        String otp = extractStringValue(vars.get("otp"), "");
+        String expirationMinutes = String.valueOf(vars.getOrDefault("expirationMinutes", 
+            emailType == EmailType.LOGIN_OTP ? OtpConstant.LOGIN_OTP_EXPIRATION_MINUTES :
+            emailType == EmailType.REGISTRATION_OTP ? OtpConstant.REGISTRATION_OTP_EXPIRATION_MINUTES :
+            OtpConstant.DEFAULT_OTP_EXPIRATION_MINUTES));
+        
+        String purposeKey = switch (emailType) {
+            case FORGOT_PASSWORD_OTP -> EmailTemplate.OTP_PURPOSE_FORGOT_PASSWORD;
+            case REGISTRATION_OTP -> EmailTemplate.OTP_PURPOSE_REGISTRATION;
+            case LOGIN_OTP -> EmailTemplate.OTP_PURPOSE_LOGIN;
+            default -> EmailTemplate.OTP_PURPOSE_VERIFICATION;
+        };
+        
+        String subject = getOtpSubject(emailType);
+        String purpose = messageUtils.getMessage(purposeKey);
+        String content = messageUtils.getMessage(EmailTemplate.OTP_CONTENT,
+                purpose, otp, expirationMinutes);
+        
+        return buildSimpleEmailHtml(subject, content, otp);
+    }
+    
+    private String buildRegistrationVerificationHtml(Map<String, Object> vars) {
+        String username = extractStringValue(vars.get("username"), "User");
+        String approveUrl = extractStringValue(vars.get("approveUrl"), "");
+        String rejectUrl = extractStringValue(vars.get("rejectUrl"), "");
+        
+        return buildAccountVerificationHtml(username, approveUrl, rejectUrl);
+    }
+    
+    private String buildPasswordResetVerificationHtml(Map<String, Object> vars) {
+        String verificationUrl = extractStringValue(vars.get("verificationUrl"), "");
+        
+        return String.format("""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
+                    .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                    .header { text-align: center; margin-bottom: 30px; }
+                    .title { color: #333; font-size: 24px; margin-bottom: 10px; }
+                    .content { color: #555; line-height: 1.6; margin-bottom: 30px; }
+                    .button-container { text-align: center; margin: 30px 0; }
+                    .btn { display: inline-block; padding: 12px 25px; margin: 0 10px; text-decoration: none; border-radius: 5px; font-weight: bold; }
+                    .btn-approve { background: #28a745; color: white; }
+                    .btn-reject { background: #dc3545; color: white; }
+                    .footer { text-align: center; color: #666; font-size: 14px; margin-top: 30px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1 class="title">🔐 %s</h1>
+                    </div>
+                    <div class="content">
+                        <p>%s</p>
+                        <p>%s</p>
+                    </div>
+                    <div class="button-container">
+                        <a href="%s&action=approve" class="btn btn-approve">✅ %s</a>
+                        <a href="%s&action=reject" class="btn btn-reject">❌ %s</a>
+                    </div>
+                    <div class="footer">
+                        <p>%s</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """,
+            messageUtils.getMessage(EmailTemplate.PASSWORD_RESET_VERIFICATION_SUBJECT),
+            messageUtils.getMessage(EmailTemplate.PASSWORD_RESET_VERIFICATION_CONTENT),
+            messageUtils.getMessage(EmailTemplate.PASSWORD_RESET_VERIFICATION_ACTION),
+            verificationUrl, messageUtils.getMessage(EmailTemplate.EMAIL_VERIFICATION_APPROVE),
+            verificationUrl, messageUtils.getMessage(EmailTemplate.EMAIL_VERIFICATION_REJECT),
+            messageUtils.getMessage(EmailTemplate.EMAIL_VERIFICATION_FOOTER)
+        );
+    }
+    
+    private String buildUserLockedHtml(Map<String, Object> vars) {
+        String username = extractStringValue(vars.get("username"), "User");
+        String performedBy = extractStringValue(vars.get("performedBy"), "System");
+        LocalDateTime lockTime = (LocalDateTime) vars.get("lockTime");
+        
+        String lockType = lockTime != null 
+            ? messageUtils.getMessage("email.user.locked.temporary") + " " + lockTime 
+            : messageUtils.getMessage("email.user.locked.permanent");
+            
+        return buildUserStatusChangeHtml(
+            messageUtils.getMessage("email.user.locked.title"),
+            MessageFormat.format(messageUtils.getMessage("email.user.locked.message"), username, lockType, performedBy),
+            messageUtils.getMessage("email.user.locked.note"),
+            "#dc3545"
+        );
+    }
+    
+    private String buildUserUnlockedHtml(Map<String, Object> vars) {
+        String username = extractStringValue(vars.get("username"), "User");
+        String performedBy = extractStringValue(vars.get("performedBy"), "System");
+        
+        return buildUserStatusChangeHtml(
+            messageUtils.getMessage("email.user.unlocked.title"),
+            MessageFormat.format(messageUtils.getMessage("email.user.unlocked.message"), username, performedBy),
+            messageUtils.getMessage("email.user.unlocked.note"),
+            "#28a745"
+        );
+    }
+    
+    private String buildUserAutoUnlockedHtml(Map<String, Object> vars) {
+        String username = extractStringValue(vars.get("username"), "User");
+        
+        return buildUserStatusChangeHtml(
+            messageUtils.getMessage("email.user.auto.unlocked.title"),
+            MessageFormat.format(messageUtils.getMessage("email.user.auto.unlocked.message"), username),
+            messageUtils.getMessage("email.user.auto.unlocked.note"),
+            "#17a2b8"
+        );
+    }
+    
+    private String buildUserUpdatedHtml(Map<String, Object> vars) {
+        String username = extractStringValue(vars.get("username"), "User");
+        String performedBy = extractStringValue(vars.get("performedBy"), "System");
+        
+        return buildUserStatusChangeHtml(
+            messageUtils.getMessage("email.user.updated.title"),
+            MessageFormat.format(messageUtils.getMessage("email.user.updated.message"), username, performedBy),
+            messageUtils.getMessage("email.user.updated.note"),
+            "#ffc107"
+        );
+    }
+    
+    private String buildLoginAlertHtml(Map<String, Object> vars) {
+        String username = extractStringValue(vars.get("username"), "User");
+        
+        // Handle loginTime - could be LocalDateTime object or String
+        String loginTime;
+        Object loginTimeObj = vars.get("loginTime");
+        if (loginTimeObj instanceof LocalDateTime) {
+            loginTime = DateTimeUtils.toString((LocalDateTime) loginTimeObj);
+        } else if (loginTimeObj instanceof String) {
+            loginTime = (String) loginTimeObj;
+        } else {
+            loginTime = DateTimeUtils.toString(LocalDateTime.now());
+        }
+        
+        String ipAddress = extractStringValue(vars.get("ipAddress"), "Unknown");
+        String device = extractStringValue(vars.get("device"), "Unknown device");
+        
+        return buildUserStatusChangeHtml(
+            messageUtils.getMessage("email.login.alert.title"),
+            MessageFormat.format(messageUtils.getMessage("email.login.alert.message"), 
+                username, loginTime, ipAddress, device),
+            messageUtils.getMessage("email.login.alert.note"),
+            "#17a2b8"
+        );
+    }
+    
+    /**
+     * Safely extracts a String value from an Object, handling cases where the value might be:
+     * - null
+     * - String
+     * - ArrayList (takes first element if available)
+     * - Other types (converts to String)
+     */
+    private String extractStringValue(Object value, String defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        
+        if (value instanceof String) {
+            return (String) value;
+        }
+        
+        if (value instanceof java.util.List<?>) {
+            java.util.List<?> list = (java.util.List<?>) value;
+            if (!list.isEmpty() && list.get(0) != null) {
+                return list.get(0).toString();
+            }
+            return defaultValue;
+        }
+        
+        // For any other type, convert to string
+        return value.toString();
     }
 }

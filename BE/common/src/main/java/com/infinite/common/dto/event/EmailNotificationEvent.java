@@ -1,5 +1,6 @@
 package com.infinite.common.dto.event;
 
+import com.infinite.common.constant.EmailType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -10,7 +11,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Email notification event - shared across services
+ * Unified email notification event - the single event for all email types
+ * Replaces AccountVerificationEvent and UserStatusChangeEvent
  */
 @Data
 @Builder
@@ -24,21 +26,39 @@ public class EmailNotificationEvent {
     @Builder.Default
     private Instant timestamp = Instant.now();
     
+    // Recipient
     private String to;
-    private String subject;
-    private String content;
-    private String template;
+    
+    // Email type (required) - determines which template to use
+    private EmailType emailType;
+    
+    // Template variables (required) - data needed to render the email
     private Map<String, Object> variables;
     
-    @Builder.Default
-    private boolean isHtml = true;
-    
+    // User context
     private String userId;
+    
+    // Locale for i18n
+    @Builder.Default
+    private String locale = "en";
+    
+    // Technical metadata (optional) - for tracking, debugging
     private Map<String, Object> metadata;
     
     @Builder.Default
-    private String locale = "en"; // Default locale
-    
-    @Builder.Default
     private int retryCount = 0;
+    
+    // Deprecated fields - kept for backward compatibility, will be removed
+    @Deprecated
+    private String subject;
+    
+    @Deprecated
+    private String content;
+    
+    @Deprecated
+    private String template;
+    
+    @Deprecated
+    @Builder.Default
+    private boolean isHtml = true;
 }

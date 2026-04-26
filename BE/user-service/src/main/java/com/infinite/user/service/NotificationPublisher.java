@@ -1,5 +1,7 @@
 package com.infinite.user.service;
 
+import com.infinite.common.constant.EmailType;
+import com.infinite.common.constant.OtpConstant;
 import com.infinite.common.dto.event.AccountVerificationEvent;
 import com.infinite.common.dto.event.EmailNotificationEvent;
 import com.infinite.common.dto.event.SmsNotificationEvent;
@@ -13,6 +15,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -35,6 +38,9 @@ public class NotificationPublisher {
     
     @Value("${notification.topics.websocket:notification.websocket}")
     private String websocketTopic;
+    
+    @Value("${app.base.url:http://localhost:8080}")
+    private String appBaseUrl;
     
     /**
      * Publish email notification event
@@ -76,23 +82,44 @@ public class NotificationPublisher {
         }
     }
     
-    // ========== Helper methods ==========
+    // ========== Helper methods (NEW UNIFIED APPROACH) ==========
     
     /**
-     * Helper: Send OTP email
+     * Helper: Send OTP email using new unified EmailType approach
      */
     public void sendOtpEmail(String email, String userId, String otp, String type) {
         String locale = LocaleContextHolder.getLocale().getLanguage();
         
+        // Map old type string to new EmailType enum
+        EmailType emailType = switch (type) {
+            case "forgot_password" -> EmailType.FORGOT_PASSWORD_OTP;
+            case "registration" -> EmailType.REGISTRATION_OTP;
+            case "login" -> EmailType.LOGIN_OTP;
+            default -> EmailType.FORGOT_PASSWORD_OTP;
+        };
+        
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("otp", otp);
+        variables.put("expirationMinutes", getExpirationMinutes(emailType));
+        
         EmailNotificationEvent event = EmailNotificationEvent.builder()
+            .emailType(emailType)
             .to(email)
-            .subject("OTP Verification")
             .userId(userId)
-            .metadata(Map.of("type", type, "otp", otp))
+            .variables(variables)
             .locale(locale)
             .build();
         
         publishEmailNotification(event);
+    }
+    
+    private int getExpirationMinutes(EmailType emailType) {
+        return switch (emailType) {
+            case LOGIN_OTP -> (int) OtpConstant.LOGIN_OTP_EXPIRATION_MINUTES;
+            case REGISTRATION_OTP -> (int) OtpConstant.REGISTRATION_OTP_EXPIRATION_MINUTES;
+            case FORGOT_PASSWORD_OTP -> (int) OtpConstant.DEFAULT_OTP_EXPIRATION_MINUTES;
+            default -> (int) OtpConstant.DEFAULT_OTP_EXPIRATION_MINUTES;
+        };
     }
     
     /**
@@ -136,54 +163,115 @@ public class NotificationPublisher {
         
         publishWebSocketNotification(event);
     }
-    // ========== New methods for user status changes and account verification ==========
+    // ========== New unified methods using EmailType ==========
     
     /**
-     * Helper: Send account verification email
+     * Helper: Send account verification email using new unified approach
      */
     public void sendAccountVerificationEmail(String email, String userId, String username, String verificationToken) {
         String locale = LocaleContextHolder.getLocale().getLanguage();
         
-        AccountVerificationEvent event = AccountVerificationEvent.builder()
+        // Build approve and reject URLs using injected appBaseUrl from config
+        String approveUrl = appBaseUrl + "/v1/api/auth/verify-registration?token=" + verificationToken + "&action=approve&lang=" + locale;
+        String rejectUrl = appBaseUrl + "/v1/api/auth/verify-registration?token=" + verificationToken + "&action=reject&lang=" + locale;
+        
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("username", username);
+        variables.put("approveUrl", approveUrl);
+        variables.put("rejectUrl", rejectUrl);
+        
+        EmailNotificationEvent event = EmailNotificationEvent.builder()
+            .emailType(EmailType.REGISTRATION_VERIFICATION)
             .to(email)
             .userId(userId)
-            .username(username)
-            .verificationToken(verificationToken)
+            .variables(variables)
             .locale(locale)
             .build();
         
-        try {
-            kafkaTemplate.send("account.verification", userId, event);
-            log.debug("Published account verification to topic: account.verification for user: {} with locale: {}", userId, locale);
-        } catch (Exception e) {
-            log.error("Failed to publish account verification event", e);
-            throw new RuntimeException("Failed to publish account verification", e);
-        }
+        publishEmailNotification(event);
+        log.debug("Published registration verification email for user: {} with locale: {}", userId, locale);
     }
     
     /**
-     * Helper: Send user status change notification
+     * Helper: Send user status change notification using new unified approach
      */
     public void sendUserStatusChangeNotification(String email, String userId, String username, 
                                                 String action, LocalDateTime lockTime, String performedBy) {
         String locale = LocaleContextHolder.getLocale().getLanguage();
         
-        UserStatusChangeEvent event = UserStatusChangeEvent.builder()
+        // Map action to EmailType
+        EmailType emailType = switch (action) {
+            case "LOCKED" -> EmailType.USER_LOCKED;
+            case "UNLOCKED" -> EmailType.USER_UNLOCKED;
+            case "AUTO_UNLOCKED" -> EmailType.USER_AUTO_UNLOCKED;
+            case "UPDATED" -> EmailType.USER_UPDATED;
+            default -> throw new IllegalArgumentException("Unknown action: " + action);
+        };
+        
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("username", username);
+        if (lockTime != null) {
+            variables.put("lockTime", lockTime);
+        }
+        if (performedBy != null) {
+            variables.put("performedBy", performedBy);
+        }
+        
+        EmailNotificationEvent event = EmailNotificationEvent.builder()
+            .emailType(emailType)
             .to(email)
             .userId(userId)
-            .username(username)
-            .action(action)
-            .lockTime(lockTime)
-            .performedBy(performedBy)
+            .variables(variables)
             .locale(locale)
             .build();
         
-        try {
-            kafkaTemplate.send("user.status.change", userId, event);
-            log.debug("Published user status change to topic: user.status.change for user: {} action: {} with locale: {}", userId, action, locale);
-        } catch (Exception e) {
-            log.error("Failed to publish user status change event", e);
-            throw new RuntimeException("Failed to publish user status change", e);
-        }
+        publishEmailNotification(event);
+        log.debug("Published user status change email for user: {} action: {} with locale: {}", userId, action, locale);
+    }
+    
+    /**
+     * Helper: Send password reset verification email using new unified approach
+     */
+    public void sendPasswordResetVerificationEmail(String email, String userId, String verificationUrl) {
+        String locale = LocaleContextHolder.getLocale().getLanguage();
+        
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("verificationUrl", verificationUrl);
+        
+        EmailNotificationEvent event = EmailNotificationEvent.builder()
+            .emailType(EmailType.PASSWORD_RESET_VERIFICATION)
+            .to(email)
+            .userId(userId)
+            .variables(variables)
+            .locale(locale)
+            .build();
+        
+        publishEmailNotification(event);
+        log.debug("Published password reset verification email for user: {} with locale: {}", userId, locale);
+    }
+    
+    /**
+     * Helper: Send login alert email
+     */
+    public void sendLoginAlertEmail(String email, String userId, String username, 
+                                   String ipAddress, String device) {
+        String locale = LocaleContextHolder.getLocale().getLanguage();
+        
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("username", username);
+        variables.put("loginTime", LocalDateTime.now()); // Send raw LocalDateTime, let notification format it
+        variables.put("ipAddress", ipAddress != null ? ipAddress : "Unknown");
+        variables.put("device", device != null ? device : "Unknown device");
+        
+        EmailNotificationEvent event = EmailNotificationEvent.builder()
+            .emailType(EmailType.LOGIN_ALERT)
+            .to(email)
+            .userId(userId)
+            .variables(variables)
+            .locale(locale)
+            .build();
+        
+        publishEmailNotification(event);
+        log.debug("Published login alert email for user: {} with locale: {}", userId, locale);
     }
 }

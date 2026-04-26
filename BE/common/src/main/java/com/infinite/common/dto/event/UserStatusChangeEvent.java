@@ -12,7 +12,15 @@ import java.util.UUID;
 
 /**
  * User status change event - for lock/unlock/update notifications
+ * 
+ * @deprecated Use {@link EmailNotificationEvent} with appropriate {@code emailType} instead:
+ * - USER_LOCKED
+ * - USER_UNLOCKED
+ * - USER_AUTO_UNLOCKED
+ * - USER_UPDATED
+ * This event will be removed in a future version.
  */
+@Deprecated(since = "2.0", forRemoval = true)
 @Data
 @Builder
 @NoArgsConstructor
