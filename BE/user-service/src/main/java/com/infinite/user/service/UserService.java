@@ -13,8 +13,6 @@ public interface UserService {
     ApiResponse<Object> changePassword(ChangePasswordRequest request);
     ApiResponse<Object> sendForgotPasswordOtp(ForgotPasswordRequest request);
     ApiResponse<Object> verifyForgotPasswordOtp(ForgotPasswordOtpRequest request);
-    ApiResponse<Object> sendForgotPasswordSmsOtp(ForgotPasswordSmsRequest request);
-    ApiResponse<Object> verifyForgotPasswordSmsOtp(ForgotPasswordSmsOtpRequest request);
     ApiResponse<Object> verifyEmail(VerifyEmailRequest request);
     String verifyEmailHtml(VerifyEmailRequest request);
     ApiResponse<Object> verifyRegistration(VerifyRegistrationRequest request);

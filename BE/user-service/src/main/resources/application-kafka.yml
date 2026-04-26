@@ -16,5 +16,4 @@ spring:
 notification:
   topics:
     email: ${TOPIC_EMAIL:notification.email}
-    sms: ${TOPIC_SMS:notification.sms}
     websocket: ${TOPIC_WEBSOCKET:notification.websocket}

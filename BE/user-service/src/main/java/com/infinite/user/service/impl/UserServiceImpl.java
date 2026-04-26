@@ -10,9 +10,6 @@ import com.infinite.common.constant.OtpConstant;
 import com.infinite.common.service.OtpService;
 import com.infinite.common.util.FileUrlBuilder;
 import com.infinite.common.util.HtmlResultPageRenderer;
-import com.infinite.common.dto.event.EmailNotificationEvent;
-import com.infinite.common.dto.event.SmsNotificationEvent;
-import com.infinite.common.dto.event.WebSocketNotificationEvent;
 import com.infinite.user.client.FileClient;
 import com.infinite.user.config.FileUrlConfig;
 import com.infinite.user.dto.request.*;
@@ -197,56 +194,6 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public ApiResponse<Object> sendForgotPasswordSmsOtp(ForgotPasswordSmsRequest request) {
-        User user = userRepository.findByPhoneNumber(request.getPhoneNumber())
-                .orElseThrow(() -> new AppException(StatusCode.DATA_NOT_EXISTED, message("auth.phone.notfound")));
-
-        String otp = otpService.generateOtp();
-        String otpKey = "forgot_password_otp_sms:" + request.getPhoneNumber();
-        otpService.storeOtp(otpKey, otp, 5, TimeUnit.MINUTES);
-
-        // Send OTP via Kafka
-        notificationPublisher.sendOtpSms(
-                request.getPhoneNumber(),
-                user.getId().toString(),
-                otp,
-                "forgot_password"
-        );
-
-        return ApiResponse.builder()
-                .code(code(SUCCESS))
-                .message(message("auth.otp.sent"))
-                .build();
-    }
-
-    @Override
-    public ApiResponse<Object> verifyForgotPasswordSmsOtp(ForgotPasswordSmsOtpRequest request) {
-        String otpKey = "forgot_password_otp_sms:" + request.getPhoneNumber();
-
-        if (!otpService.verifyOtp(otpKey, request.getOtp())) {
-            String storedOtp = otpService.getOtp(otpKey);
-            if (storedOtp == null) {
-                throw new AppException(StatusCode.INVALID_KEY, message("auth.otp.expired"));
-            } else {
-                throw new AppException(StatusCode.INVALID_KEY, message("auth.otp.invalid"));
-            }
-        }
-
-        User user = userRepository.findByPhoneNumber(request.getPhoneNumber())
-                .orElseThrow(() -> new AppException(StatusCode.DATA_NOT_EXISTED, message("auth.phone.notfound")));
-
-        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
-        userRepository.save(user);
-
-        otpService.deleteOtp(otpKey);
-
-        return ApiResponse.builder()
-                .code(code(SUCCESS))
-                .message(message("auth.password.reset.success"))
-                .build();
-    }
-
-    @Override
     public ApiResponse<Object> verifyForgotPasswordOtp(ForgotPasswordOtpRequest request) {
         // Verify OTP from Redis
         String otpKey = otpService.generateForgotPasswordOtpKey(request.getEmail());
@@ -383,13 +330,8 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public ApiResponse<Object> verifyRegistration(VerifyRegistrationRequest request) {
-        String otpKey;
-
-        if ("sms".equals(request.getVerificationMethod())) {
-            otpKey = "registration_otp_sms:" + request.getIdentifier();
-        } else {
-            otpKey = "registration_otp_email:" + request.getIdentifier();
-        }
+        // Only support email verification now
+        String otpKey = "registration_otp_email:" + request.getIdentifier();
 
         if (!otpService.verifyOtp(otpKey, request.getOtp())) {
             String storedOtp = otpService.getOtp(otpKey);
@@ -418,13 +360,6 @@ public class UserServiceImpl implements UserService {
         // Clean up
         otpService.deleteOtp(otpKey);
         otpService.deleteOtp(tempKey);
-
-        // Clean up other OTP key if both email and SMS were sent
-        if ("sms".equals(request.getVerificationMethod()) && user.getEmail() != null) {
-            otpService.deleteOtp("registration_otp_email:" + user.getEmail());
-        } else if ("email".equals(request.getVerificationMethod()) && user.getPhoneNumber() != null) {
-            otpService.deleteOtp("registration_otp_sms:" + user.getPhoneNumber());
-        }
 
         // Send welcome notification via Kafka
         notificationPublisher.sendWebSocketToUser(

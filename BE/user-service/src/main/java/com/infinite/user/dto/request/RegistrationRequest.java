@@ -9,6 +9,6 @@ public class RegistrationRequest {
     private String name;
     private String email;
     private String phoneNumber;
-    private String verificationMethod; // "email" or "sms"
+    private String verificationMethod; // "email" only - SMS not supported
     private String nguoithuchien;
 }

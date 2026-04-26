@@ -26,7 +26,7 @@ public class AuthController {
         return userService.login(request);
     }
 
-    @Operation(summary = "Đăng ký tài khoản", description = "Đăng ký tài khoản mới và gửi OTP qua email/SMS")
+    @Operation(summary = "Đăng ký tài khoản", description = "Đăng ký tài khoản mới và gửi OTP qua email")
     @PostMapping(value = "/register", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<Object> register(
             @RequestParam(value = "request") String requestJson,
@@ -84,17 +84,5 @@ public class AuthController {
     @PostMapping("/forgot-password/verify")
     public ApiResponse<Object> verifyForgotPasswordOtp(@RequestBody ForgotPasswordOtpRequest request){
         return userService.verifyForgotPasswordOtp(request);
-    }
-
-    @Operation(summary = "Quên mật khẩu - Gửi OTP qua SMS", description = "Gửi OTP qua SMS để reset mật khẩu")
-    @PostMapping("/forgot-password-sms")
-    public ApiResponse<Object> forgotPasswordSms(@RequestBody ForgotPasswordSmsRequest request){
-        return userService.sendForgotPasswordSmsOtp(request);
-    }
-
-    @Operation(summary = "Xác nhận OTP SMS và đổi mật khẩu", description = "Xác nhận OTP từ SMS và đặt mật khẩu mới")
-    @PostMapping("/forgot-password-sms/verify")
-    public ApiResponse<Object> verifyForgotPasswordSmsOtp(@RequestBody ForgotPasswordSmsOtpRequest request){
-        return userService.verifyForgotPasswordSmsOtp(request);
     }
 }

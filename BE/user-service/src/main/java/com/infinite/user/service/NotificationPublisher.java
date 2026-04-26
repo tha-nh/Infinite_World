@@ -4,7 +4,6 @@ import com.infinite.common.constant.EmailType;
 import com.infinite.common.constant.OtpConstant;
 import com.infinite.common.dto.event.AccountVerificationEvent;
 import com.infinite.common.dto.event.EmailNotificationEvent;
-import com.infinite.common.dto.event.SmsNotificationEvent;
 import com.infinite.common.dto.event.UserStatusChangeEvent;
 import com.infinite.common.dto.event.WebSocketNotificationEvent;
 import lombok.RequiredArgsConstructor;
@@ -33,9 +32,6 @@ public class NotificationPublisher {
     @Value("${notification.topics.email:notification.email}")
     private String emailTopic;
     
-    @Value("${notification.topics.sms:notification.sms}")
-    private String smsTopic;
-    
     @Value("${notification.topics.websocket:notification.websocket}")
     private String websocketTopic;
     
@@ -52,19 +48,6 @@ public class NotificationPublisher {
         } catch (Exception e) {
             log.error("Failed to publish email notification event", e);
             throw new RuntimeException("Failed to publish email notification", e);
-        }
-    }
-    
-    /**
-     * Publish SMS notification event
-     */
-    public void publishSmsNotification(SmsNotificationEvent event) {
-        try {
-            kafkaTemplate.send(smsTopic, event.getUserId(), event);
-            log.debug("Published SMS notification to topic: {} for user: {}", smsTopic, event.getUserId());
-        } catch (Exception e) {
-            log.error("Failed to publish SMS notification event", e);
-            throw new RuntimeException("Failed to publish SMS notification", e);
         }
     }
     
@@ -120,19 +103,6 @@ public class NotificationPublisher {
             case FORGOT_PASSWORD_OTP -> (int) OtpConstant.DEFAULT_OTP_EXPIRATION_MINUTES;
             default -> (int) OtpConstant.DEFAULT_OTP_EXPIRATION_MINUTES;
         };
-    }
-    
-    /**
-     * Helper: Send OTP SMS
-     */
-    public void sendOtpSms(String phoneNumber, String userId, String otp, String type) {
-        SmsNotificationEvent event = SmsNotificationEvent.builder()
-            .phoneNumber(phoneNumber)
-            .userId(userId)
-            .metadata(Map.of("type", type, "otp", otp))
-            .build();
-        
-        publishSmsNotification(event);
     }
     
     /**
