@@ -98,10 +98,11 @@ message FileInfo {
   string file_name = 1;
   string original_file_name = 2;
   string file_url = 3;
-  string file_type = 4;
-  int64 file_size = 5;
-  string category = 6;
-  string user_id = 7;
-  string created_at = 8;
-  string updated_at = 9;
+  string relative_url = 4;  // Encoded relative URL for service storage
+  string file_type = 5;
+  int64 file_size = 6;
+  string category = 7;
+  string user_id = 8;
+  string created_at = 9;
+  string updated_at = 10;
 }

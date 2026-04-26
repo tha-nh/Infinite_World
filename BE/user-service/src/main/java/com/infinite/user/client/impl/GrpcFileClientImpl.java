@@ -66,6 +66,7 @@ public class GrpcFileClientImpl implements FileClient {
                     .fileName(fileInfo.getFileName())
                     .originalFileName(fileInfo.getOriginalFileName())
                     .fileUrl(fileInfo.getFileUrl())
+                    .relativeUrl(fileInfo.getRelativeUrl())  // Map relativeUrl for service storage
                     .fileType(fileInfo.getFileType())
                     .fileSize(fileInfo.getFileSize())
                     .category(fileInfo.getCategory())

@@ -11,12 +11,20 @@ services:
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
+
+  minio-init:
+    image: minio/mc
+    container_name: minio-init
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      mc alias set local http://minio:9000 minioadmin minioadmin;
+      mc mb local/infinite-world --ignore-existing;
+      mc anonymous set download local/infinite-world;
+      exit 0;
+      "
 
 volumes:
   minio_data:
-    driver: local

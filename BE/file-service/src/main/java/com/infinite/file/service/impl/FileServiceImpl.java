@@ -3,21 +3,22 @@ package com.infinite.file.service.impl;
 import com.infinite.common.constant.StatusCode;
 import com.infinite.common.dto.response.ApiResponse;
 import com.infinite.common.exception.AppException;
+import com.infinite.common.util.FileUrlBuilder;
 import com.infinite.file.config.FileConfig;
 import com.infinite.common.dto.response.FileUploadResponse;
+import com.infinite.file.entity.FileResource;
 import com.infinite.file.service.FileService;
+import com.infinite.file.service.FileResourceService;
 import com.infinite.grpc.service.file.FileServiceGrpc;
 import io.minio.*;
 import io.minio.errors.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
-import java.util.UUID;
 
 import static com.infinite.common.constant.StatusCode.SUCCESS;
 import static com.infinite.common.dto.response.Response.code;
@@ -30,9 +31,12 @@ public class FileServiceImpl implements FileService, FileServiceGrpc {
     
     private final FileConfig fileConfig;
     private final MinioClient minioClient;
+    private final FileResourceService fileResourceService;
     
     @Override
+    @Transactional
     public ApiResponse<FileUploadResponse> uploadFile(MultipartFile file, String category, String userId) {
+        String objectKey = null;
         try {
             // Validate file
             if (file.isEmpty()) {
@@ -52,66 +56,118 @@ public class FileServiceImpl implements FileService, FileServiceGrpc {
             // Ensure bucket exists
             ensureBucketExists();
             
-            // Generate unique filename
-            String fileName = generateFileName(file.getOriginalFilename());
-            String objectName = category + "/" + fileName;
+            // Resolve unique filename BEFORE uploading to MinIO
+            String originalFileName = file.getOriginalFilename();
+            String parentPath = fileConfig.getBucketName() + "/" + category;
+            String uniqueFileName = fileResourceService.resolveUniqueFileName(originalFileName, parentPath);
             
-            // Upload to MinIO
+            // Build object key and path with unique filename
+            objectKey = category + "/" + uniqueFileName;
+            String objectPath = fileConfig.getBucketName() + "/" + objectKey;
+            
+            // Upload to MinIO with unique filename
             minioClient.putObject(
                 PutObjectArgs.builder()
                     .bucket(fileConfig.getBucketName())
-                    .object(objectName)
+                    .object(objectKey)
                     .stream(file.getInputStream(), file.getSize(), -1)
                     .contentType(file.getContentType())
                     .build()
             );
             
-            // Build file URL
-            String fileUrl = getFileUrl(fileName, category);
+            // Save metadata to database (name already resolved, no duplicate handling needed)
+            try {
+                fileResourceService.saveFileMetadata(objectPath, file.getContentType(), file.getSize(), userId);
+            } catch (Exception e) {
+                // Compensation: Delete from MinIO if DB save fails
+                log.error("Failed to save metadata to DB, rolling back MinIO upload: ", e);
+                try {
+                    minioClient.removeObject(
+                        RemoveObjectArgs.builder()
+                            .bucket(fileConfig.getBucketName())
+                            .object(objectKey)
+                            .build()
+                    );
+                } catch (Exception rollbackEx) {
+                    log.error("Failed to rollback MinIO upload: ", rollbackEx);
+                }
+                throw new AppException(StatusCode.INTERNAL_ERROR, "Failed to save file metadata: " + e.getMessage());
+            }
+            
+            // Build file URL lúc response - encode path trước
+            String encodedRelativePath = FileUrlBuilder.encodeAndNormalizeForStorage("/" + fileConfig.getBucketName() + "/" + category + "/" + uniqueFileName);
+            String fileUrl = buildFullUrl(encodedRelativePath);
             
             FileUploadResponse response = FileUploadResponse.builder()
-                    .fileName(fileName)
+                    .fileName(uniqueFileName)
                     .originalFileName(file.getOriginalFilename())
-                    .fileUrl(fileUrl)
+                    .fileUrl(fileUrl)  // Full URL for client
+                    .relativeUrl(encodedRelativePath)  // Encoded relative URL for service storage
                     .fileType(file.getContentType())
                     .fileSize(file.getSize())
                     .category(category)
                     .build();
             
-            log.info("File uploaded successfully to MinIO: {}", objectName);
             return ApiResponse.<FileUploadResponse>builder()
                     .code(code(SUCCESS))
                     .message(message("file.upload.success"))
                     .result(response)
                     .build();
                     
+        } catch (AppException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error uploading file to MinIO: ", e);
+            // Cleanup MinIO if upload succeeded but other error occurred
+            if (objectKey != null) {
+                try {
+                    minioClient.removeObject(
+                        RemoveObjectArgs.builder()
+                            .bucket(fileConfig.getBucketName())
+                            .object(objectKey)
+                            .build()
+                    );
+                } catch (Exception cleanupEx) {
+                    log.error("Failed to cleanup MinIO upload: ", cleanupEx);
+                }
+            }
             throw new AppException(StatusCode.INTERNAL_ERROR, "Failed to upload file: " + e.getMessage());
         }
     }
     
     @Override
+    @Transactional
     public ApiResponse<Object> deleteFile(String fileName, String category) {
         try {
-            String objectName = category + "/" + fileName;
+            // Build object path to find metadata
+            String objectPath = fileConfig.getBucketName() + "/" + category + "/" + fileName;
             
+            // Find metadata in DB first
+            FileResource resource = fileResourceService.findByObjectPath(objectPath);
+            
+            // Extract object key from object path (remove bucket prefix)
+            String objectKey = resource.getObjectPath().substring(fileConfig.getBucketName().length() + 1);
+            
+            // Delete from MinIO
             minioClient.removeObject(
                 RemoveObjectArgs.builder()
                     .bucket(fileConfig.getBucketName())
-                    .object(objectName)
+                    .object(objectKey)
                     .build()
             );
             
-            log.info("File deleted successfully from MinIO: {}", objectName);
+            // Delete metadata from database
+            fileResourceService.deleteFileMetadata(objectPath);
             
             return ApiResponse.builder()
                     .code(code(SUCCESS))
                     .message(message("file.delete.success"))
                     .build();
                     
+        } catch (AppException e) {
+            throw e;
         } catch (Exception e) {
-            log.error("Error deleting file from MinIO: ", e);
+            log.error("Error deleting file: ", e);
             throw new AppException(StatusCode.INTERNAL_ERROR, "Failed to delete file: " + e.getMessage());
         }
     }
@@ -119,20 +175,44 @@ public class FileServiceImpl implements FileService, FileServiceGrpc {
     @Override
     public String getFileUrl(String fileName, String category) {
         try {
-            String objectName = category + "/" + fileName;
+            // Build raw object path
+            String objectPath = fileConfig.getBucketName() + "/" + category + "/" + fileName;
             
-            // Generate presigned URL for file access (valid for 7 days)
-            return minioClient.getPresignedObjectUrl(
-                GetPresignedObjectUrlArgs.builder()
-                    .method(io.minio.http.Method.GET)
-                    .bucket(fileConfig.getBucketName())
-                    .object(objectName)
-                    .expiry(7 * 24 * 60 * 60) // 7 days
-                    .build()
-            );
+            // Encode path for URL
+            String encodedRelativePath = FileUrlBuilder.encodeAndNormalizeForStorage(objectPath);
             
+            // Build full URL from encoded relative path
+            return buildFullUrl(encodedRelativePath);
         } catch (Exception e) {
-            log.error("Error generating file URL: ", e);
+            log.error("Error building file URL: ", e);
+            return null;
+        }
+    }
+    
+    /**
+     * Build relative URL (without host/IP, with leading slash) for storage
+     * @param relativeUrl Relative path (category/filename)
+     * @return Relative URL with bucket prefix and leading slash
+     */
+    private String buildRelativeUrl(String relativeUrl) {
+        return "/" + fileConfig.getBucketName() + "/" + relativeUrl;
+    }
+    
+    /**
+     * Build full URL by adding host/IP to relative URL
+     * Encodes path segments to handle special characters in file names
+     * @param relativeUrl Relative URL stored in DB (/bucket/category/filename)
+     * @return Full URL with host/IP and encoded path
+     */
+    private String buildFullUrl(String encodedRelativePath) {
+        try {
+            if (encodedRelativePath == null || encodedRelativePath.isEmpty()) {
+                return null;
+            }
+            // Use common utility to ghép host vào encoded relative path
+            return FileUrlBuilder.buildFullUrl(fileConfig.getPublicBaseUrl(), encodedRelativePath);
+        } catch (Exception e) {
+            log.error("Error building full URL: ", e);
             return null;
         }
     }
@@ -199,15 +279,8 @@ public class FileServiceImpl implements FileService, FileServiceGrpc {
                     .bucket(fileConfig.getBucketName())
                     .build()
             );
-            log.info("Created bucket: {}", fileConfig.getBucketName());
+            
         }
-    }
-    
-    private String generateFileName(String originalFileName) {
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-        String uuid = UUID.randomUUID().toString().substring(0, 8);
-        String extension = getFileExtension(originalFileName);
-        return timestamp + "_" + uuid + "." + extension;
     }
     
     private String getFileExtension(String fileName) {

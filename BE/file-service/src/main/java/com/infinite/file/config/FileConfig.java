@@ -44,6 +44,9 @@ public class FileConfig {
     @Value("${file.upload.allowed-types:jpg,jpeg,png,gif,mp4,avi,mov,pdf,doc,docx}")
     private String allowedTypes;
     
+    @Value("${file.public.base-url:http://localhost:9000}")
+    private String publicBaseUrl;
+    
     @Bean
     public MinioClient minioClient() {
         return MinioClient.builder()
@@ -90,5 +93,9 @@ public class FileConfig {
     
     public String getMinioEndpoint() {
         return minioEndpoint;
+    }
+    
+    public String getPublicBaseUrl() {
+        return publicBaseUrl;
     }
 }

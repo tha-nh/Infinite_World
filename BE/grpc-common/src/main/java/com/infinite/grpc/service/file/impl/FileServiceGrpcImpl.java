@@ -58,6 +58,7 @@ public class FileServiceGrpcImpl extends FileServiceRpcGrpc.FileServiceRpcImplBa
                     .setFileName(uploadResult.getFileName())
                     .setOriginalFileName(uploadResult.getOriginalFileName())
                     .setFileUrl(uploadResult.getFileUrl())
+                    .setRelativeUrl(uploadResult.getRelativeUrl() != null ? uploadResult.getRelativeUrl() : "")
                     .setFileType(uploadResult.getFileType())
                     .setFileSize(uploadResult.getFileSize())
                     .setCategory(uploadResult.getCategory())

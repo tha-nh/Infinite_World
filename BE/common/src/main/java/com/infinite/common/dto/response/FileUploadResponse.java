@@ -12,7 +12,8 @@ import lombok.NoArgsConstructor;
 public class FileUploadResponse {
     private String fileName;
     private String originalFileName;
-    private String fileUrl;
+    private String fileUrl;  // Full URL with host/IP for client response
+    private String relativeUrl;  // Relative URL (encoded, without host/IP) for service storage
     private String fileType;
     private long fileSize;
     private String category;

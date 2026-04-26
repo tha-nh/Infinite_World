@@ -7,10 +7,12 @@ import com.infinite.common.dto.response.PageResponse;
 import com.infinite.common.exception.AppException;
 import com.infinite.common.constant.OtpConstant;
 import com.infinite.common.service.OtpService;
+import com.infinite.common.util.FileUrlBuilder;
 import com.infinite.common.dto.event.EmailNotificationEvent;
 import com.infinite.common.dto.event.SmsNotificationEvent;
 import com.infinite.common.dto.event.WebSocketNotificationEvent;
 import com.infinite.user.client.FileClient;
+import com.infinite.user.config.FileUrlConfig;
 import com.infinite.user.dto.request.*;
 import com.infinite.user.dto.response.LoginResponse;
 import com.infinite.user.dto.response.UserDto;
@@ -60,6 +62,7 @@ public class UserServiceImpl implements UserService {
     final OtpService otpService;
     final NotificationPublisher notificationPublisher;
     final FileClient fileClient;
+    final FileUrlConfig fileUrlConfig;
 
     @org.springframework.beans.factory.annotation.Value("${app.base.url}")
     String appBaseUrl;
@@ -76,13 +79,17 @@ public class UserServiceImpl implements UserService {
                 Set.of();
 
         String token = jwtUtil.generateToken(user.getUsername(), roleNames);
+        
+        // Build full imageUrl by adding host/IP
+        String fullImageUrl = user.getImageUrl() != null ? fileUrlConfig.buildFullUrl(user.getImageUrl()) : null;
+        
         LoginResponse response = LoginResponse.builder()
                 .token(token)
                 .username(user.getUsername())
                 .name(user.getName())
                 .email(user.getEmail())
                 .phoneNumber(user.getPhoneNumber())
-                .imageUrl(user.getImageUrl())
+                .imageUrl(fullImageUrl)
                 .roles(roleNames)
                 .build();
 
@@ -508,7 +515,8 @@ public class UserServiceImpl implements UserService {
                         fileClient.uploadFile(avatar, "avatar", user.getId().toString());
 
                 if (uploadResult.getCode() == code(SUCCESS)) {
-                    user.setImageUrl(uploadResult.getResult().getFileUrl());
+                    // Store relative URL (encoded, without host/IP)
+                    user.setImageUrl(uploadResult.getResult().getRelativeUrl());
                     userRepository.save(user);
                 }
             } catch (Exception e) {
@@ -601,7 +609,8 @@ public class UserServiceImpl implements UserService {
                         fileClient.uploadFile(avatar, "avatar", user.getId().toString());
 
                 if (uploadResult.getCode() == code(SUCCESS)) {
-                    user.setImageUrl(uploadResult.getResult().getFileUrl());
+                    // Store relative URL (encoded, without host/IP)
+                    user.setImageUrl(uploadResult.getResult().getRelativeUrl());
 
                     // Delete old avatar asynchronously
                     if (oldImageUrl != null && !oldImageUrl.isEmpty()) {
@@ -646,7 +655,7 @@ public class UserServiceImpl implements UserService {
                 pageable
         );
 
-        // Load roles for each user
+        // Load roles for each user and build full imageUrl
         Page<UserDto> data = dataWithRoles.map(userDto -> {
             User user = userRepository.findById(userDto.getId()).orElse(null);
             if (user != null && user.getRoles() != null) {
@@ -655,6 +664,12 @@ public class UserServiceImpl implements UserService {
                         .toList();
                 userDto.setRoles(roleNames);
             }
+            
+            // Build full imageUrl by adding host/IP
+            if (userDto.getImageUrl() != null) {
+                userDto.setImageUrl(fileUrlConfig.buildFullUrl(userDto.getImageUrl()));
+            }
+            
             return userDto;
         });
 
@@ -867,7 +882,8 @@ public class UserServiceImpl implements UserService {
 
         // Update user's imageUrl
         String oldImageUrl = user.getImageUrl();
-        user.setImageUrl(uploadResult.getResult().getFileUrl());
+        // Store relative URL (encoded, without host/IP)
+        user.setImageUrl(uploadResult.getResult().getRelativeUrl());
         userRepository.save(user);
 
         // Delete old avatar asynchronously (non-blocking)
@@ -894,13 +910,21 @@ public class UserServiceImpl implements UserService {
             return null;
         }
 
-        // Extract filename from URL like: http://localhost:8080/api/files/avatar/20241219_143022_abc123.jpg
-        String[] parts = fileUrl.split("/");
-        if (parts.length > 0) {
-            return parts[parts.length - 1];
+        // Use common utility to extract file name from relative or full URL
+        // Handles both: /infinite-world/avatar/file.jpg and http://localhost:8080/infinite-world/avatar/file.jpg
+        
+        // If it's a full URL, extract the path part first
+        String path = fileUrl;
+        if (fileUrl.startsWith("http://") || fileUrl.startsWith("https://")) {
+            // Extract path from full URL
+            int pathStart = fileUrl.indexOf("/", fileUrl.indexOf("://") + 3);
+            if (pathStart > 0) {
+                path = fileUrl.substring(pathStart);
+            }
         }
-
-        return null;
+        
+        // Use common utility to extract file name
+        return FileUrlBuilder.extractFileName(path);
     }
 
     @Override
