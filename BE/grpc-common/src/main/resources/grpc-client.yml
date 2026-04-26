@@ -1,0 +1,39 @@
+# Common gRPC Client Configuration
+# Auto-loaded when services import grpc-common dependency
+# Override via environment variables for different environments
+
+management:
+  health:
+    grpcChannel:
+      enabled: true  # Enable health check for gRPC channels
+
+grpc:
+  client:
+    # User Service
+    user-service:
+      address: ${GRPC_USER_SERVICE_ADDRESS:static://localhost:18081}
+      negotiation-type: plaintext
+      enable-keep-alive: true
+      keep-alive-time: 30s
+      keep-alive-timeout: 5s
+
+    # Notification Service
+    notification-service:
+      address: ${GRPC_NOTIFICATION_SERVICE_ADDRESS:static://localhost:18082}
+      negotiation-type: plaintext
+      enable-keep-alive: true
+      keep-alive-time: 30s
+      keep-alive-timeout: 5s
+
+    # File Service
+    file-service:
+      address: ${GRPC_FILE_SERVICE_ADDRESS:static://localhost:18083}
+      negotiation-type: plaintext
+      enable-keep-alive: true
+      keep-alive-time: 30s
+      keep-alive-timeout: 5s
+      max-inbound-message-size: 104857600  # 100MB
+
+
+# Note: When using service discovery (Eureka/Consul), change to:
+# address: discovery:///service-name

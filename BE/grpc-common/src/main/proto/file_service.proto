@@ -1,0 +1,107 @@
+syntax = "proto3";
+
+package com.infinite.file.grpc;
+
+option java_multiple_files = true;
+option java_package = "com.infinite.file.grpc";
+option java_outer_classname = "FileServiceProto";
+
+// File Service gRPC Definition
+service FileServiceRpc {
+  // Upload file
+  rpc UploadFile(UploadFileRequest) returns (UploadFileResponse);
+  
+  // Get file URL
+  rpc GetFileUrl(GetFileUrlRequest) returns (GetFileUrlResponse);
+  
+  // Delete file
+  rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
+  
+  // List files by category
+  rpc ListFiles(ListFilesRequest) returns (ListFilesResponse);
+  
+  // Get file info
+  rpc GetFileInfo(GetFileInfoRequest) returns (GetFileInfoResponse);
+}
+
+// Upload File Request
+message UploadFileRequest {
+  bytes file_data = 1;
+  string original_filename = 2;
+  string category = 3;
+  string user_id = 4;
+  string content_type = 5;
+}
+
+// Upload File Response
+message UploadFileResponse {
+  int32 code = 1;
+  string message = 2;
+  FileInfo file_info = 3;
+}
+
+// Get File URL Request
+message GetFileUrlRequest {
+  string file_path = 1;
+}
+
+// Get File URL Response
+message GetFileUrlResponse {
+  int32 code = 1;
+  string message = 2;
+  string file_url = 3;
+}
+
+// Delete File Request
+message DeleteFileRequest {
+  string file_path = 1;
+}
+
+// Delete File Response
+message DeleteFileResponse {
+  int32 code = 1;
+  string message = 2;
+}
+
+// List Files Request
+message ListFilesRequest {
+  string category = 1;
+  string user_id = 2;
+  int32 page = 3;
+  int32 size = 4;
+}
+
+// List Files Response
+message ListFilesResponse {
+  int32 code = 1;
+  string message = 2;
+  repeated FileInfo files = 3;
+  int32 total_elements = 4;
+  int32 total_pages = 5;
+  int32 current_page = 6;
+}
+
+// Get File Info Request
+message GetFileInfoRequest {
+  string file_path = 1;
+}
+
+// Get File Info Response
+message GetFileInfoResponse {
+  int32 code = 1;
+  string message = 2;
+  FileInfo file_info = 3;
+}
+
+// File Info Model
+message FileInfo {
+  string file_name = 1;
+  string original_file_name = 2;
+  string file_url = 3;
+  string file_type = 4;
+  int64 file_size = 5;
+  string category = 6;
+  string user_id = 7;
+  string created_at = 8;
+  string updated_at = 9;
+}

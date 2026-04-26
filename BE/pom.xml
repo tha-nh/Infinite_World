@@ -19,6 +19,7 @@
 
     <modules>
         <module>common</module>
+        <module>grpc-common</module>
         <module>notification</module>
         <module>file-service</module>
         <module>i18n</module>

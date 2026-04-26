@@ -6,6 +6,7 @@ import com.infinite.common.exception.AppException;
 import com.infinite.file.config.FileConfig;
 import com.infinite.common.dto.response.FileUploadResponse;
 import com.infinite.file.service.FileService;
+import com.infinite.grpc.service.file.FileServiceGrpc;
 import io.minio.*;
 import io.minio.errors.*;
 import lombok.RequiredArgsConstructor;
@@ -22,10 +23,10 @@ import static com.infinite.common.constant.StatusCode.SUCCESS;
 import static com.infinite.common.dto.response.Response.code;
 import static com.infinite.common.dto.response.Response.message;
 
-@Service
+@Service("fileServiceGrpc")
 @RequiredArgsConstructor
 @Slf4j
-public class FileServiceImpl implements FileService {
+public class FileServiceImpl implements FileService, FileServiceGrpc {
     
     private final FileConfig fileConfig;
     private final MinioClient minioClient;

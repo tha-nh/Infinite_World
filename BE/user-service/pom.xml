@@ -127,6 +127,20 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- gRPC Common -->
+        <dependency>
+            <groupId>com.infinite</groupId>
+            <artifactId>grpc-common</artifactId>
+            <version>${project.version}</version>
+            <exclusions>
+                <!-- Exclude grpc-server as user-service only needs grpc-client -->
+                <exclusion>
+                    <groupId>net.devh</groupId>
+                    <artifactId>grpc-server-spring-boot-starter</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
         <!-- Kafka -->
         <dependency>
             <groupId>org.springframework.kafka</groupId>

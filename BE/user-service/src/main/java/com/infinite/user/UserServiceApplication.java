@@ -17,7 +17,11 @@ import java.util.Optional;
 @EnableAspectJAutoProxy
 @EnableScheduling
 @org.springframework.scheduling.annotation.EnableAsync
-@SpringBootApplication(scanBasePackages = {"com.infinite.user", "com.infinite.common"})
+@SpringBootApplication(scanBasePackages = {
+        "com.infinite.user",
+        "com.infinite.common",
+        "com.infinite.grpc"
+})
 public class UserServiceApplication {
     public static void main(String[] args) {
         SpringApplication app = new SpringApplication(UserServiceApplication.class);
@@ -52,11 +56,16 @@ public class UserServiceApplication {
             newProfiles[newProfiles.length - 1] = "api-docs";
             profiles = newProfiles;
         }
+        
+        // Get gRPC file-service address
+        String grpcFileService = env.getProperty("grpc.client.file-service.address", "N/A");
+        
         System.out.println(
                 "\n----------------------------------------------------------\n\t" +
                         "🚀 Application '" + env.getProperty("spring.application.name") + "' is running! Access URLs:\n\t" +
                         "🌐 Local:      " + protocol + "://localhost:" + serverPort + contextPath + "\n\t" +
                         "🌍 External:   " + protocol + "://" + hostAddress + ":" + serverPort + contextPath + "\n\t" +
+                        "📡 gRPC:       " + grpcFileService + "\n\t" +
                         "🧪 Profile(s): " + Arrays.toString(profiles) + "\n" +
                         "----------------------------------------------------------"
         );
