@@ -1,121 +1,71 @@
-version: '3.8'
-
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:16-alpine
-    container_name: infinite-postgres
-    environment:
-      POSTGRES_DB: infinite_world
-      POSTGRES_USER: infinite
-      POSTGRES_PASSWORD: infinite@123
+  # Gateway Service
+  inf-gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    container_name: inf-gateway
     ports:
-      - "5432:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
-    networks:
-      - infinite-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U infinite"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Redis
-  redis:
-    image: redis:7-alpine
-    container_name: infinite-redis
-    command: redis-server --requirepass infinite@123
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-    networks:
-      - infinite-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # MinIO (S3-compatible storage)
-  minio:
-    image: minio/minio:latest
-    container_name: infinite-minio
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - minio-data:/data
-    networks:
-      - infinite-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-
-  # Kafka (from docker-compose.kafka.yml)
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.5.0
-    container_name: zookeeper
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    ports:
-      - "2181:2181"
+      - "8080:8080"
+    env_file:
+      - .env_docker.properties
     networks:
       - infinite-network
 
-  kafka:
-    image: confluentinc/cp-kafka:7.5.0
-    container_name: kafka
-    depends_on:
-      - zookeeper
+  # User Service
+  inf-user:
+    build:
+      context: .
+      dockerfile: user-service/Dockerfile
+    container_name: inf-user
     ports:
-      - "9092:9092"
-      - "29092:29092"
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-      KAFKA_LOG_RETENTION_HOURS: 168
-    networks:
-      - infinite-network
-    healthcheck:
-      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
-      interval: 10s
-      timeout: 10s
-      retries: 5
-
-  kafka-ui:
-    image: provectuslabs/kafka-ui:latest
-    container_name: kafka-ui
-    depends_on:
-      - kafka
-    ports:
-      - "8090:8080"
-    environment:
-      KAFKA_CLUSTERS_0_NAME: local
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
-      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+      - "8081:8081"
+      - "18081:18081"
+    env_file:
+      - .env_docker.properties
     networks:
       - infinite-network
 
-volumes:
-  postgres-data:
-  redis-data:
-  minio-data:
+  # I18N Service
+  inf-i18n:
+    build:
+      context: .
+      dockerfile: i18n/Dockerfile
+    container_name: inf-i18n
+    ports:
+      - "8082:8082"
+    env_file:
+      - .env_docker.properties
+    networks:
+      - infinite-network
+#
+  # File Service
+  inf-file:
+    build:
+      context: .
+      dockerfile: file-service/Dockerfile
+    container_name: inf-file
+    ports:
+      - "8083:8083"
+      - "18083:18083"
+    env_file:
+      - .env_docker.properties
+    networks:
+      - infinite-network
+#
+  # Notification Service
+  inf-notification:
+    build:
+      context: .
+      dockerfile: notification/Dockerfile
+    container_name: inf-notification
+    ports:
+      - "8084:8084"
+    env_file:
+      - .env_docker.properties
+    networks:
+      - infinite-network
 
 networks:
   infinite-network:
-    driver: bridge
+    external: true

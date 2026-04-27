@@ -57,15 +57,15 @@ public class UserServiceApplication {
             profiles = newProfiles;
         }
         
-        // Get gRPC file-service address
-        String grpcFileService = env.getProperty("grpc.client.file-service.address", "N/A");
+        // Get gRPC server port of this service
+        String grpcPort = env.getProperty("grpc.server.port", "N/A");
         
         System.out.println(
                 "\n----------------------------------------------------------\n\t" +
                         "🚀 Application '" + env.getProperty("spring.application.name") + "' is running! Access URLs:\n\t" +
                         "🌐 Local:      " + protocol + "://localhost:" + serverPort + contextPath + "\n\t" +
                         "🌍 External:   " + protocol + "://" + hostAddress + ":" + serverPort + contextPath + "\n\t" +
-                        "📡 gRPC:       " + grpcFileService + "\n\t" +
+                        "📡 gRPC:       " + protocol + "://localhost:" + grpcPort + contextPath + "\n\t" +
                         "🧪 Profile(s): " + Arrays.toString(profiles) + "\n" +
                         "----------------------------------------------------------"
         );

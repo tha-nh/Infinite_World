@@ -1,12 +1,9 @@
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:21-jre
 
 WORKDIR /app
 
-# Copy the jar file
-COPY target/*.jar app.jar
+COPY notification/target/notification-1.0.0-SNAPSHOT.jar app.jar
+COPY docker/libs/opentelemetry-javaagent_1.30.0.jar opentelemetry-javaagent.jar
 
-# Expose port
-EXPOSE 8084
 
-# Run the application
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java","--enable-preview","-jar","/app/app.jar"]

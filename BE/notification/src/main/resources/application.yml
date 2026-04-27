@@ -2,6 +2,9 @@ server:
   port: 8084
 
 spring:
+  devtools:
+    restart:
+      enabled: false
   application:
     name: notification-service
 

@@ -86,3 +86,13 @@ gateway:
         - Method=GET,POST,PUT,DELETE,OPTIONS
       filters:
         - Authorization=authn,roles:ADMIN
+
+    - id: file
+      uri: ${FILE_SERVICE}
+      predicates:
+        - Path=[
+          "/v1/api/files/**"
+          ]
+        - Method=GET,POST,PUT,DELETE,OPTIONS
+      filters:
+        - Authorization=authn
