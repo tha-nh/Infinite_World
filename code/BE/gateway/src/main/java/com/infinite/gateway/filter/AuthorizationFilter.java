@@ -5,6 +5,7 @@ import com.infinite.gateway.model.AuthorizationConfig;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -50,6 +51,20 @@ public class AuthorizationFilter
                 }
             }
             
+            if (auths.contains("authn")) {
+                ServerHttpRequest request = exchange.getRequest().mutate()
+                        .headers(headers -> {
+                            headers.remove("X-USER-ID");
+                            headers.remove("X-USER-NAME");
+                            headers.remove("X-USER-ROLES");
+                        })
+                        .header("X-USER-ID", String.valueOf(exchange.getAttribute("auth.userId")))
+                        .header("X-USER-NAME", String.valueOf(exchange.getAttribute("auth.username")))
+                        .header("X-USER-ROLES", String.valueOf(exchange.getAttribute("auth.roles")))
+                        .build();
+                return chain.filter(exchange.mutate().request(request).build());
+            }
+
             return chain.filter(exchange);
         };
     }

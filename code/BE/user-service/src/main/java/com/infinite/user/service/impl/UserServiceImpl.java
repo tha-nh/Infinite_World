@@ -78,7 +78,7 @@ public class UserServiceImpl implements UserService {
                 user.getRoles().stream().map(Role::getName).collect(java.util.stream.Collectors.toSet()) :
                 Set.of();
 
-        String token = jwtUtil.generateToken(user.getUsername(), roleNames);
+        String token = jwtUtil.generateToken(user.getUsername(), user.getId(), roleNames);
         
         // Build full imageUrl by adding host/IP
         String fullImageUrl = user.getImageUrl() != null ? fileUrlConfig.buildFullUrl(user.getImageUrl()) : null;

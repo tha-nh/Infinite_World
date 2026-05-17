@@ -1,885 +1,1019 @@
-# 👤 User Service
+# User Service
 
-## 📋 Tổng quan
+Cap nhat: 2026-05-17
 
-User Service quản lý toàn bộ lifecycle của người dùng trong hệ thống Infinite World, bao gồm authentication, authorization, profile management, và avatar handling.
+## Tong quan
 
----
+`user-service` la service quan ly user/account cua Infinite World. Service nay phu trach dang nhap, dang ky, quen mat khau, doi mat khau, quan ly user, role, avatar, khoa/mo khoa tai khoan, auto unlock va phat yeu cau notification lien quan den user.
 
-## 🎯 Chức năng chính
+Day la service nguon su that cho user profile co ban trong schema `INF_USER`.
 
-### 1. **Authentication & Authorization**
-- User registration với email verification
-- Login/Logout với JWT tokens
-- OAuth2 integration (Google, Facebook)
-- Role-based access control (RBAC)
-- Password reset và change password
-- Account locking/unlocking mechanism
+## Trach nhiem chinh
 
-### 2. **User Management**
-- CRUD operations cho users
-- Profile management (update info, avatar)
-- User search và filtering
-- Pagination support
-- Soft delete với audit trail
+- Authentication:
+  - login bang username/password
+  - tao JWT
+  - doi mat khau
+  - forgot password OTP
+  - verify forgot password OTP
+- Registration:
+  - tao user moi
+  - upload avatar neu co
+  - gui email xac thuc/duyet dang ky
+  - verify registration token
+  - verify email/password reset token
+- User management:
+  - search user
+  - tao user boi admin
+  - cap nhat user
+  - reset password user ve default
+  - upload avatar
+  - lock/unlock user
+  - auto unlock user het han khoa
+- Role management:
+  - CRUD role
+  - search role
+  - assign/remove role cho user
+- Integration:
+  - file-service qua gRPC de upload/delete avatar
+  - notification-service qua Kafka `notification.request.v1`
+  - Redis cho ha tang cache/session neu can
 
-### 3. **Avatar Management** 
-- Upload avatar qua gRPC (file-service)
-- Automatic old avatar cleanup (async)
-- Avatar URL caching
-- Support multiple image formats
+## Khong phu trach
 
-### 4. **Security Features**
-- JWT-based authentication
-- Password encryption (BCrypt)
-- Account lockout after failed attempts
-- Auto-unlock scheduler
-- CORS configuration
-- XSS protection
+- Khong gui email truc tiep.
+- Khong push websocket truc tiep.
+- Khong luu inbox notification.
+- Khong quan ly file binary truc tiep; file thuoc file-service/MinIO.
+- Khong xu ly client inbox; client inbox thuoc notification-service.
 
-### 5. **Notification Integration**
-- Kafka event publishing
-- Email notifications (verification, password reset, OTP)
-- WebSocket notifications
+## Runtime
 
----
+Port local:
 
-## 🏗️ Kiến trúc
-
-### Module Structure
-```
-user-service/
-├── src/main/java/com/infinite/user/
-│   ├── client/                      # External service clients
-│   │   ├── FileClient.java          # File service interface
-│   │   └── impl/
-│   │       ├── GrpcFileClientImpl.java  # gRPC implementation
-│   │       └── FileClientImpl.java      # REST implementation (deprecated)
-│   ├── config/                      # Configuration classes
-│   │   ├── SecurityConfig.java      # Spring Security
-│   │   ├── FileClientConfig.java    # File client bean
-│   │   ├── AsyncConfig.java         # Async processing
-│   │   ├── KafkaProducerConfig.java # Kafka setup
-│   │   └── filter/                  # Security filters
-│   ├── controller/rest/             # REST API endpoints
-│   │   ├── UserController.java      # User CRUD
-│   │   └── AuthController.java      # Authentication
-│   ├── dto/                         # Data Transfer Objects
-│   │   ├── request/                 # Request DTOs
-│   │   └── response/                # Response DTOs
-│   ├── model/                       # JPA Entities
-│   │   ├── User.java                # User entity
-│   │   └── Role.java                # Role entity
-│   ├── repository/                  # Data access layer
-│   │   ├── UserRepository.java
-│   │   └── RoleRepository.java
-│   ├── service/                     # Business logic
-│   │   ├── UserService.java
-│   │   ├── RoleService.java
-│   │   └── impl/
-│   ├── scheduler/                   # Scheduled tasks
-│   │   └── UserUnlockScheduler.java # Auto-unlock accounts
-│   └── util/                        # Utilities
-│       ├── JwtUtil.java             # JWT operations
-│       └── ValidationUtil.java      # Validation helpers
-└── src/main/resources/
-    ├── application.properties       # Configuration
-    └── db/migration/                # Flyway migrations
+```text
+8081
 ```
 
----
+Spring app name:
 
-## 🔧 Configuration
-
-### Application Properties
 ```properties
-# Server
-server.port=8081
 spring.application.name=user-service
-
-# Database
-spring.datasource.url=jdbc:postgresql://localhost:5432/user_db
-spring.datasource.username=${DB_USERNAME:postgres}
-spring.datasource.password=${DB_PASSWORD:postgres}
-
-# JWT
-jwt.secret=${JWT_SECRET:your-secret-key}
-jwt.expiration=86400000  # 24 hours
-
-# gRPC Client (file-service)
-grpc.client.file-service.address=${GRPC_FILE_SERVICE_ADDRESS:static://localhost:9093}
-grpc.client.file-service.negotiation-type=plaintext
-
-# Kafka
-spring.kafka.bootstrap-servers=${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
-spring.kafka.producer.key-serializer=org.apache.kafka.common.serialization.StringSerializer
-spring.kafka.producer.value-serializer=org.springframework.kafka.support.serializer.JsonSerializer
-
-# Redis
-spring.data.redis.host=${REDIS_HOST:localhost}
-spring.data.redis.port=${REDIS_PORT:6379}
-
-# Async
-spring.task.execution.pool.core-size=5
-spring.task.execution.pool.max-size=10
 ```
 
----
+Profile mac dinh:
 
-## 🚀 gRPC Integration
-
-### File Service Communication
-
-User service gọi file-service qua **gRPC** thay vì REST để tăng performance và type safety.
-
-#### Architecture
-```
-UserServiceImpl
-    ↓ (uses)
-FileClient (interface)
-    ↓ (implemented by)
-GrpcFileClientImpl (adapter)
-    ↓ (uses)
-FileGrpcClient (grpc-common)
-    ↓ (gRPC call)
-FileServiceGrpcImpl (file-service)
+```properties
+SPRING_PROFILES_ACTIVE=dev,kafka
 ```
 
-#### Benefits
-- ✅ **Type Safety**: Protobuf contract
-- ✅ **Performance**: Binary protocol, faster than JSON/REST
-- ✅ **Auto-config**: No manual endpoint configuration
-- ✅ **Abstraction**: Business logic không biết về gRPC
-- ✅ **Async Support**: Built-in async operations
+Kafka profile la bat buoc neu muon cac flow notification hoat dong.
 
-#### Usage Example
-```java
-@Service
-public class UserServiceImpl {
-    
-    private final FileClient fileClient;  // Abstraction
-    
-    public ApiResponse<UserResponse> updateAvatar(String userId, MultipartFile avatar) {
-        // Upload new avatar via gRPC
-        ApiResponse<FileUploadResponse> uploadResult = 
-            fileClient.uploadFile(avatar, "avatars", userId);
-        
-        if (uploadResult.getCode() == StatusCode.SUCCESS.getCode()) {
-            String newAvatarUrl = uploadResult.getResult().getFileUrl();
-            
-            // Update user
-            user.setImageUrl(newAvatarUrl);
-            userRepository.save(user);
-            
-            // Delete old avatar async
-            if (oldAvatarUrl != null) {
-                fileClient.deleteFileAsync(oldFileName, "avatars");
-            }
-        }
-        
-        return buildResponse(user);
-    }
-}
+## Cau truc module
+
+```text
+user-service/src/main/java/com/infinite/user
+|-- controller/rest
+|   |-- AuthController.java
+|   |-- UserController.java
+|   `-- RoleController.java
+|-- service
+|   |-- UserService.java
+|   |-- RoleService.java
+|   |-- NotificationPublisher.java
+|   `-- impl
+|-- repository
+|   |-- UserRepository.java
+|   `-- RoleRepository.java
+|-- model
+|   |-- User.java
+|   `-- Role.java
+|-- dto
+|   |-- request
+|   `-- response
+|-- client
+|   |-- FileClient.java
+|   `-- impl
+|-- config
+|-- scheduler
+|-- util
+`-- UserServiceApplication.java
 ```
 
----
+## API hien co
 
-## 📝 API Endpoints & Testing
+Base URL:
 
-### Base URL
-```
+```text
 http://localhost:8081
 ```
 
----
+## Chuc nang va cach test bang API
 
-### 🔐 Authentication Endpoints
+### 1. Dang nhap
 
-#### 1. Register New User
+Muc dich:
+
+- Kiem tra username/password.
+- Kiem tra trang thai account.
+- Tao JWT co claim `userId`.
+- Phat login alert notification neu login thanh cong.
+
+Curl:
+
 ```bash
-curl -X POST http://localhost:8081/v1/api/auth/register \
-  -H "Accept-Language: vi" \
-  -F 'request={"username":"user123","password":"Password123!","name":"Nguyen Van A","email":"user@example.com","phone":"+84901234567"}' \
-  -F 'avatar=@/path/to/avatar.jpg'
+curl --location 'http://localhost:8081/v1/api/auth/login' \
+  --header 'Content-Type: application/json' \
+  --header 'Accept-Language: vi' \
+  --data-raw '{
+    "username": "user@example.com",
+    "password": "Password123!",
+    "ipAddress": "127.0.0.1",
+    "device": "Postman"
+  }'
 ```
 
-**Without Avatar:**
-```bash
-curl -X POST http://localhost:8081/v1/api/auth/register \
-  -H "Accept-Language: vi" \
-  -F 'request={"username":"user123","password":"Password123!","name":"Nguyen Van A","email":"user@example.com","phone":"+84901234567"}'
+Sau khi login thanh cong, notification-service se nhan request co:
+
+```text
+sourceService = user-service
+sourceAction  = send_login_alert_email
 ```
 
-**Response:**
-```json
-{
-  "code": 1000,
-  "message": "Đăng ký thành công",
-  "result": {
-    "id": "uuid-here",
-    "username": "user123",
+### 2. Dang ky user
+
+Muc dich:
+
+- Tao user moi.
+- Upload avatar neu request co file.
+- Tao user inactive/cho verify theo flow hien tai.
+- Gui email verification/approval qua notification-service.
+
+Curl khong avatar:
+
+```bash
+curl --location 'http://localhost:8081/v1/api/auth/register' \
+  --header 'Accept-Language: vi' \
+  --form 'request={"username":"newuser@example.com","password":"Password123!","name":"New User","email":"newuser@example.com","phoneNumber":"0900000000"}'
+```
+
+Curl co avatar:
+
+```bash
+curl --location 'http://localhost:8081/v1/api/auth/register' \
+  --header 'Accept-Language: vi' \
+  --form 'request={"username":"newuser@example.com","password":"Password123!","name":"New User","email":"newuser@example.com","phoneNumber":"0900000000"}' \
+  --form 'avatar=@avatar.jpg'
+```
+
+### 3. Verify registration
+
+Muc dich:
+
+- Xu ly link approve/reject trong email dang ky.
+- Set locale tu query param `lang`.
+- Neu approve thi active user theo flow service.
+
+Curl:
+
+```bash
+curl --location 'http://localhost:8081/v1/api/auth/verify-registration?token=TOKEN_HERE&action=approve&lang=vi'
+```
+
+Reject:
+
+```bash
+curl --location 'http://localhost:8081/v1/api/auth/verify-registration?token=TOKEN_HERE&action=reject&lang=vi'
+```
+
+### 4. Forgot password OTP
+
+Muc dich:
+
+- Tao OTP reset password.
+- Response i18n theo `Accept-Language`.
+- Gui OTP email qua notification-service.
+
+Curl:
+
+```bash
+curl --location 'http://localhost:8081/v1/api/auth/forgot-password' \
+  --header 'Content-Type: application/json' \
+  --header 'Accept-Language: vi' \
+  --data-raw '{"email":"user@example.com"}'
+```
+
+Notification expected:
+
+```text
+sourceAction = send_otp_email
+content.locale = vi
+templateVars.emailType = FORGOT_PASSWORD_OTP
+```
+
+### 5. Verify forgot password OTP
+
+Muc dich:
+
+- Xac thuc OTP.
+- Cap nhat password moi.
+
+Curl:
+
+```bash
+curl --location 'http://localhost:8081/v1/api/auth/forgot-password/verify' \
+  --header 'Content-Type: application/json' \
+  --header 'Accept-Language: vi' \
+  --data-raw '{
     "email": "user@example.com",
-    "name": "Nguyen Van A",
-    "phone": "+84901234567",
-    "status": "ACTIVE",
-    "emailVerified": false,
-    "createdAt": "2024-04-26T10:30:00"
-  }
-}
-```
-
-#### 2. Login
-```bash
-curl -X POST http://localhost:8081/v1/api/auth/login \
-  -H "Content-Type: application/json" \
-  -H "Accept-Language: en" \
-  -d '{
-    "username": "user123",
-    "password": "Password123!"
-  }'
-```
-
-**Response:**
-```json
-{
-  "code": 1000,
-  "message": "Login successful",
-  "result": {
-    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "tokenType": "Bearer",
-    "expiresIn": 86400,
-    "user": {
-      "id": "uuid-here",
-      "email": "user@example.com",
-      "fullName": "Nguyen Van A",
-      "roles": ["USER"]
-    }
-  }
-}
-```
-
-#### 3. Refresh Token
-```bash
-curl -X POST http://localhost:8081/api/v1/auth/refresh-token \
-  -H "Content-Type: application/json" \
-  -d '{
-    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-  }'
-```
-
-#### 4. Logout
-```bash
-curl -X POST http://localhost:8081/api/v1/auth/logout \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-```
-
-#### 5. Forgot Password
-```bash
-curl -X POST http://localhost:8081/api/v1/auth/forgot-password \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com"
-  }'
-```
-
-#### 6. Reset Password
-```bash
-curl -X POST http://localhost:8081/api/v1/auth/reset-password \
-  -H "Content-Type: application/json" \
-  -d '{
-    "token": "reset-token-here",
+    "otp": "123456",
     "newPassword": "NewPassword123!"
   }'
 ```
 
-#### 7. Verify Email
+### 6. Search user
+
+Muc dich:
+
+- Tim user theo keyword/status.
+- Tra ve page response tu service.
+
+Curl:
+
 ```bash
-curl -X POST http://localhost:8081/api/v1/auth/verify-email \
-  -H "Content-Type: application/json" \
-  -d '{
-    "token": "verification-token-here"
+curl --location 'http://localhost:8081/v1/api/user/search?page=0&size=20' \
+  --header 'Content-Type: application/json' \
+  --data-raw '{
+    "searchKey": "user",
+    "active": null
   }'
 ```
 
----
+### 7. Tao user boi admin
 
-### 👤 User Management Endpoints
+Muc dich:
 
-#### 8. Get All Users (Paginated)
+- Admin tao user.
+- Co the upload avatar.
+- Co the gan role/status theo request.
+
+Curl:
+
 ```bash
-curl -X GET "http://localhost:8081/api/v1/users?page=0&size=10&sort=createdAt,desc" \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
-  -H "Accept-Language: vi"
+curl --location 'http://localhost:8081/v1/api/user/create' \
+  --header 'Accept-Language: vi' \
+  --form 'request={"username":"admincreated@example.com","password":"Password123!","name":"Admin Created","email":"admincreated@example.com","phoneNumber":"0900000001","nguoithuchien":"admin","roleIds":[1],"active":1}'
 ```
 
-**Response:**
-```json
-{
-  "code": 1000,
-  "message": "Lấy danh sách người dùng thành công",
-  "result": {
-    "content": [
-      {
-        "id": "uuid-1",
-        "email": "user1@example.com",
-        "fullName": "Nguyen Van A",
-        "phone": "+84901234567",
-        "imageUrl": "http://localhost:9000/avatars/avatar1.jpg",
-        "status": "ACTIVE",
-        "roles": ["USER"]
-      }
-    ],
-    "totalElements": 50,
-    "totalPages": 5,
-    "currentPage": 0,
-    "pageSize": 10
-  }
+### 8. Cap nhat user
+
+Muc dich:
+
+- Cap nhat thong tin user.
+- Neu active status thay doi, co the kich hoat flow email verification/password reset theo logic service.
+- Co the upload avatar moi.
+
+Curl:
+
+```bash
+curl --location 'http://localhost:8081/v1/api/user/update' \
+  --header 'Accept-Language: vi' \
+  --form 'request={"id":1,"name":"Updated Name","email":"user@example.com","phoneNumber":"0900000002","nguoithuchien":"admin","active":1}'
+```
+
+### 9. Upload avatar
+
+Muc dich:
+
+- Upload file qua gRPC toi file-service.
+- Luu `relativeUrl` vao `USERS.IMAGE_URL`.
+- Xoa avatar cu async neu co.
+
+Curl:
+
+```bash
+curl --location 'http://localhost:8081/v1/api/user/upload-avatar/1' \
+  --form 'file=@avatar.jpg'
+```
+
+### 10. Lock user
+
+Muc dich:
+
+- Khoa user tam thoi hoac vinh vien.
+- Set `ACTIVE` sang locked status.
+- Set `LOCK_TIME` neu khoa tam thoi.
+- Gui email status change qua notification-service.
+
+Curl khoa tam thoi:
+
+```bash
+curl --location 'http://localhost:8081/v1/api/user/lock' \
+  --header 'Content-Type: application/json' \
+  --header 'Accept-Language: vi' \
+  --data-raw '{
+    "userId": 1,
+    "lockTime": "2026-05-18T00:00:00",
+    "nguoithuchien": "admin"
+  }'
+```
+
+Curl khoa vinh vien:
+
+```bash
+curl --location 'http://localhost:8081/v1/api/user/lock' \
+  --header 'Content-Type: application/json' \
+  --header 'Accept-Language: vi' \
+  --data-raw '{
+    "userId": 1,
+    "lockTime": null,
+    "nguoithuchien": "admin"
+  }'
+```
+
+### 11. Unlock user
+
+Muc dich:
+
+- Mo khoa user.
+- Gui email unlock qua notification-service.
+
+Curl:
+
+```bash
+curl --location --request POST 'http://localhost:8081/v1/api/user/unlock/1?nguoithuchien=admin' \
+  --header 'Accept-Language: vi'
+```
+
+### 12. Role CRUD va gan role
+
+Tao role:
+
+```bash
+curl --location 'http://localhost:8081/v1/api/roles' \
+  --header 'Content-Type: application/json' \
+  --data-raw '{
+    "name": "ADMIN",
+    "description": "Administrator"
+  }'
+```
+
+Update role:
+
+```bash
+curl --location --request PUT 'http://localhost:8081/v1/api/roles/1' \
+  --header 'Content-Type: application/json' \
+  --data-raw '{
+    "name": "ADMIN",
+    "description": "Administrator updated"
+  }'
+```
+
+Search role:
+
+```bash
+curl --location 'http://localhost:8081/v1/api/roles/search?page=0&size=20' \
+  --header 'Content-Type: application/json' \
+  --data-raw '{
+    "searchKey": "ADMIN"
+  }'
+```
+
+Assign role:
+
+```bash
+curl --location --request POST 'http://localhost:8081/v1/api/roles/assign/1/1'
+```
+
+Remove role:
+
+```bash
+curl --location --request DELETE 'http://localhost:8081/v1/api/roles/remove/1/1'
+```
+
+Delete role:
+
+```bash
+curl --location --request DELETE 'http://localhost:8081/v1/api/roles/1'
+```
+
+### AuthController
+
+Base path:
+
+```text
+/v1/api/auth
+```
+
+Endpoint:
+
+```text
+POST /login
+POST /register
+GET  /verify-registration
+GET  /verify-email
+GET  /get-token
+POST /change-password
+POST /forgot-password
+POST /forgot-password/verify
+```
+
+Forgot password:
+
+```bash
+curl --location 'http://localhost:8081/v1/api/auth/forgot-password' \
+  --header 'Content-Type: application/json' \
+  --header 'Accept-Language: vi' \
+  --data-raw '{"email":"user@example.com"}'
+```
+
+Login:
+
+```bash
+curl --location 'http://localhost:8081/v1/api/auth/login' \
+  --header 'Content-Type: application/json' \
+  --header 'Accept-Language: vi' \
+  --data-raw '{
+    "username": "user@example.com",
+    "password": "password",
+    "ipAddress": "127.0.0.1",
+    "device": "Postman"
+  }'
+```
+
+Register multipart:
+
+```bash
+curl --location 'http://localhost:8081/v1/api/auth/register' \
+  --header 'Accept-Language: vi' \
+  --form 'request={"username":"user@example.com","password":"Password123!","name":"Test User","email":"user@example.com","phoneNumber":"0900000000"}' \
+  --form 'avatar=@avatar.jpg'
+```
+
+### UserController
+
+Base path:
+
+```text
+/v1/api/user
+```
+
+Endpoint:
+
+```text
+POST /search
+POST /create
+POST /update
+POST /change-password
+POST /reset-password/{userId}
+POST /upload-avatar/{userId}
+POST /lock
+POST /unlock/{userId}?nguoithuchien={admin}
+```
+
+Search user:
+
+```bash
+curl --location 'http://localhost:8081/v1/api/user/search?page=0&size=20' \
+  --header 'Content-Type: application/json' \
+  --data-raw '{
+    "searchKey": "",
+    "active": null
+  }'
+```
+
+Lock user:
+
+```bash
+curl --location 'http://localhost:8081/v1/api/user/lock' \
+  --header 'Content-Type: application/json' \
+  --header 'Accept-Language: vi' \
+  --data-raw '{
+    "userId": 1,
+    "lockTime": "2026-05-18T00:00:00",
+    "nguoithuchien": "admin"
+  }'
+```
+
+Unlock user:
+
+```bash
+curl --location --request POST 'http://localhost:8081/v1/api/user/unlock/1?nguoithuchien=admin' \
+  --header 'Accept-Language: vi'
+```
+
+### RoleController
+
+Base path:
+
+```text
+/v1/api/roles
+```
+
+Endpoint:
+
+```text
+POST   /
+PUT    /{id}
+DELETE /{id}
+GET    /{id}
+POST   /search
+POST   /assign/{userId}/{roleId}
+DELETE /remove/{userId}/{roleId}
+```
+
+RoleController hien van wrap `ResponseEntity<ApiResponse<Object>>`, khac voi notification controllers.
+
+## Database
+
+Schema:
+
+```properties
+USER_SCHEMA=INF_USER
+```
+
+Datasource dung chung DB:
+
+```properties
+DB_URL=jdbc:postgresql://localhost:5432/infinite_world
+DB_USERNAME=infinite
+DB_PASSWORD=infinite@123
+```
+
+JPA:
+
+```properties
+spring.jpa.hibernate.ddl-auto=none
+spring.jpa.open-in-view=false
+```
+
+Entity chinh:
+
+- `User`
+- `Role`
+
+Bang quan trong:
+
+- `USERS`
+- `roles`
+- `user_roles`
+
+### Bang `USERS`
+
+Entity: `com.infinite.user.model.User`
+
+| Column | Java field | Type gan dung | Nullable | Ghi chu |
+| --- | --- | --- | --- | --- |
+| `ID` | `id` | `BIGINT` identity | No | Primary key |
+| `USERNAME` | `username` | `VARCHAR(50)` | No | Unique, validate email regex trong code |
+| `PASSWORD` | `password` | `VARCHAR(60)` | No | BCrypt hash, bi `@JsonIgnore` |
+| `NAME` | `name` | `VARCHAR(50)` | Yes | Ten hien thi |
+| `EMAIL` | `email` | `VARCHAR(254)` | Yes | Unique, validate email |
+| `PHONE_NUMBER` | `phoneNumber` | `VARCHAR(20)` | Yes | So dien thoai |
+| `IMAGE_URL` | `imageUrl` | `VARCHAR(1000)` | Yes | Relative URL/avatar path tu file-service |
+| `ACTIVE` | `active` | `INTEGER` | No | Trang thai account theo `Contant.IS_ACTIVE` |
+| `LOCK_TIME` | `lockTime` | `TIMESTAMP` | Yes | Han khoa tam thoi; null co the la khoa vinh vien tuy flow |
+| `IS_DELETE` | `isDelete` | `BOOLEAN` | No | Soft delete flag |
+| `CREATE_BY` | `createBy` | `VARCHAR(50)` | Yes | Audit nguoi tao |
+| `CREATED_TIME` | `createdTime` | `TIMESTAMP` | Yes | Set boi Spring Data auditing |
+| `MODIFIED_BY` | `modifiedBy` | `VARCHAR(50)` | Yes | Audit nguoi sua |
+| `MODIFIED_TIME` | `modifiedTime` | `TIMESTAMP` | Yes | Set boi Spring Data auditing |
+
+Quan he:
+
+- Many-to-many voi `roles` qua bang join `user_roles`.
+- Fetch role dang la `EAGER`.
+
+### Bang `roles`
+
+Entity: `com.infinite.user.model.Role`
+
+| Column | Java field | Type gan dung | Nullable | Ghi chu |
+| --- | --- | --- | --- | --- |
+| `id` | `id` | `BIGINT` identity | No | Primary key |
+| `name` | `name` | `VARCHAR` | No | Unique role name |
+| `description` | `description` | `VARCHAR/TEXT` | Yes | Mo ta role |
+| `created_at` | `createdAt` | `TIMESTAMP` | Yes | Set trong `@PrePersist` |
+| `updated_at` | `updatedAt` | `TIMESTAMP` | Yes | Set trong `@PrePersist/@PreUpdate` |
+| `created_by` | `createdBy` | `VARCHAR` | Yes | Audit nguoi tao |
+| `updated_by` | `updatedBy` | `VARCHAR` | Yes | Audit nguoi sua |
+
+Quan he:
+
+- Many-to-many mapped by `User.roles`.
+
+### Bang `user_roles`
+
+Bang join do mapping `@JoinTable` tao/ky vong.
+
+| Column | Type gan dung | Nullable | Ghi chu |
+| --- | --- | --- | --- |
+| `user_id` | `BIGINT` | No | FK toi `USERS.ID` |
+| `role_id` | `BIGINT` | No | FK toi `roles.id` |
+
+Ghi chu:
+
+- Code hien khong khai bao entity rieng cho `user_roles`.
+- Neu can them metadata gan role, vi du `assigned_by`, `assigned_at`, nen tao entity join rieng thay vi dung `@ManyToMany` truc tiep.
+
+### Trang thai `ACTIVE`
+
+`ACTIVE` la integer status trong `Contant.IS_ACTIVE`. Cac flow dang dung:
+
+- inactive/unverified account sau khi tao.
+- active account sau khi verify/approve.
+- locked account khi admin khoa hoac scheduler xu ly unlock.
+
+Khi mo rong, nen tra cuu `Contant.IS_ACTIVE` thay vi hard-code so trong controller/service moi.
+
+## Security va JWT
+
+JWT duoc tao trong `JwtUtil`.
+
+Config:
+
+```properties
+SECRET_KEY=infinite_world_super_secure_key_2026_dev
+JWT_EXPIRATION_MS=86400000
+```
+
+JWT co claim `userId`. Gateway doc JWT va set trusted headers cho downstream, trong do notification client API dung:
+
+```text
+X-USER-ID
+```
+
+## File/avatar integration
+
+User-service khong luu file truc tiep. Avatar di qua `FileClient`.
+
+Flow:
+
+```text
+UserServiceImpl
+  -> FileClient
+  -> GrpcFileClientImpl
+  -> grpc-common
+  -> file-service
+  -> MinIO
+```
+
+Config lien quan:
+
+```properties
+FILE_SERVICE=http://localhost:8083
+GRPC_FILE_SERVICE_ADDRESS=static://localhost:18083
+MINIO_ENDPOINT=http://localhost:9000
+MINIO_BUCKET_NAME=infinite-world
+file.upload.max-size=52428800
+```
+
+Khi upload avatar moi, service cap nhat `User.imageUrl` va xoa avatar cu bat dong bo neu co.
+
+## gRPC integration
+
+User-service hien dang la gRPC client cua file-service. Service khong expose gRPC business API rieng cho user, nhung van co config `grpc.server.port` theo infra chung.
+
+### Module lien quan
+
+```text
+grpc-common
+|-- src/main/proto/file_service.proto
+|-- src/main/resources/grpc-client.yml
+|-- com.infinite.grpc.client.file.FileGrpcClient
+|-- com.infinite.grpc.exception.GrpcClientException
+|-- com.infinite.grpc.interceptor.*
+`-- com.infinite.grpc.service.file.*
+
+user-service
+|-- config/FileClientConfig.java
+|-- client/FileClient.java
+`-- client/impl/GrpcFileClientImpl.java
+```
+
+### File gRPC contract
+
+Proto:
+
+```text
+grpc-common/src/main/proto/file_service.proto
+```
+
+Service:
+
+```protobuf
+service FileServiceRpc {
+  rpc UploadFile(UploadFileRequest) returns (UploadFileResponse);
+  rpc GetFileUrl(GetFileUrlRequest) returns (GetFileUrlResponse);
+  rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
+  rpc ListFiles(ListFilesRequest) returns (ListFilesResponse);
+  rpc GetFileInfo(GetFileInfoRequest) returns (GetFileInfoResponse);
 }
 ```
 
-#### 9. Get User by ID
-```bash
-curl -X GET http://localhost:8081/api/v1/users/uuid-here \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+User-service dang dung cac operation:
+
+- `UploadFile`: upload avatar.
+- `DeleteFile`: xoa avatar cu bat dong bo.
+- `GetFileUrl`: lay URL file neu can.
+
+`ListFiles` va `GetFileInfo` co trong proto/client wrapper, nhung user-service chua dung trong flow hien tai.
+
+### Client wiring
+
+`FileClientConfig` tao bean:
+
+```text
+FileClient -> GrpcFileClientImpl -> FileGrpcClient -> FileServiceRpcBlockingStub
 ```
 
-#### 10. Create User (Admin Only)
-```bash
-curl -X POST http://localhost:8081/api/v1/users \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "newuser@example.com",
-    "password": "Password123!",
-    "fullName": "Tran Thi B",
-    "phone": "+84907654321",
-    "roles": ["USER"]
-  }'
-```
+`FileGrpcClient` trong `grpc-common` dung:
 
-#### 11. Update User
-```bash
-curl -X PUT http://localhost:8081/api/v1/users/uuid-here \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
-  -H "Content-Type: application/json" \
-  -d '{
-    "fullName": "Nguyen Van A Updated",
-    "phone": "+84909999999",
-    "status": "ACTIVE"
-  }'
-```
-
-#### 12. Delete User (Soft Delete)
-```bash
-curl -X DELETE http://localhost:8081/api/v1/users/uuid-here \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-```
-
-#### 13. Search Users
-```bash
-curl -X GET "http://localhost:8081/api/v1/users/search?keyword=nguyen&status=ACTIVE&page=0&size=10" \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-```
-
----
-
-### 👨‍💼 Profile Management Endpoints
-
-#### 14. Get Current User Profile
-```bash
-curl -X GET http://localhost:8081/api/v1/users/profile \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
-  -H "Accept-Language: vi"
-```
-
-**Response:**
-```json
-{
-  "code": 1000,
-  "message": "Lấy thông tin profile thành công",
-  "result": {
-    "id": "uuid-here",
-    "email": "user@example.com",
-    "fullName": "Nguyen Van A",
-    "phone": "+84901234567",
-    "imageUrl": "http://localhost:9000/avatars/20240426_avatar.jpg",
-    "status": "ACTIVE",
-    "emailVerified": true,
-    "roles": ["USER"],
-    "createdAt": "2024-04-26T10:30:00",
-    "updatedAt": "2024-04-26T15:45:00"
-  }
-}
-```
-
-#### 15. Update Profile
-```bash
-curl -X PUT http://localhost:8081/api/v1/users/profile \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
-  -H "Content-Type: application/json" \
-  -d '{
-    "fullName": "Nguyen Van A Updated",
-    "phone": "+84909999999"
-  }'
-```
-
-#### 16. Upload Avatar (via gRPC to file-service)
-```bash
-curl -X POST http://localhost:8081/api/v1/users/avatar \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
-  -F "file=@/path/to/avatar.jpg"
-```
-
-**Response:**
-```json
-{
-  "code": 1000,
-  "message": "Upload avatar thành công",
-  "result": {
-    "id": "uuid-here",
-    "email": "user@example.com",
-    "fullName": "Nguyen Van A",
-    "imageUrl": "http://localhost:9000/avatars/20240426_123456_abc123.jpg",
-    "status": "ACTIVE"
-  }
-}
-```
-
-**Note:** Avatar được upload qua gRPC tới file-service, old avatar tự động xóa async.
-
-#### 17. Delete Avatar
-```bash
-curl -X DELETE http://localhost:8081/api/v1/users/avatar \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-```
-
-#### 18. Change Password
-```bash
-curl -X PUT http://localhost:8081/api/v1/users/password \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
-  -H "Content-Type: application/json" \
-  -d '{
-    "oldPassword": "Password123!",
-    "newPassword": "NewPassword456!"
-  }'
-```
-
----
-
-### 🔒 Admin Endpoints
-
-#### 19. Lock User Account
-```bash
-curl -X POST http://localhost:8081/api/v1/users/uuid-here/lock \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
-  -H "Content-Type: application/json" \
-  -d '{
-    "reason": "Suspicious activity",
-    "duration": 3600
-  }'
-```
-
-#### 20. Unlock User Account
-```bash
-curl -X POST http://localhost:8081/api/v1/users/uuid-here/unlock \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-```
-
-#### 21. Assign Role to User
-```bash
-curl -X POST http://localhost:8081/api/v1/users/uuid-here/roles \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
-  -H "Content-Type: application/json" \
-  -d '{
-    "roleId": "role-uuid-here"
-  }'
-```
-
-#### 22. Remove Role from User
-```bash
-curl -X DELETE http://localhost:8081/api/v1/users/uuid-here/roles/role-uuid-here \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-```
-
----
-
-### 📊 Statistics Endpoints
-
-#### 23. Get User Statistics
-```bash
-curl -X GET http://localhost:8081/api/v1/users/statistics \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-```
-
-**Response:**
-```json
-{
-  "code": 1000,
-  "message": "Success",
-  "result": {
-    "totalUsers": 1250,
-    "activeUsers": 1100,
-    "inactiveUsers": 100,
-    "lockedUsers": 50,
-    "newUsersToday": 15,
-    "newUsersThisWeek": 87,
-    "newUsersThisMonth": 342
-  }
-}
-```
-
----
-
-### 🧪 Testing Tips
-
-#### Postman Collection Setup
-
-1. **Create Environment Variables:**
-   - `base_url`: `http://localhost:8081`
-   - `access_token`: (will be set after login)
-
-2. **Set Authorization:**
-   - Type: Bearer Token
-   - Token: `{{access_token}}`
-
-3. **Auto-save Token Script** (in Login request Tests tab):
-```javascript
-var jsonData = pm.response.json();
-if (jsonData.result && jsonData.result.accessToken) {
-    pm.environment.set("access_token", jsonData.result.accessToken);
-}
-```
-
-#### Test Flow
-
-1. **Register** → Get user created
-2. **Login** → Get access token (auto-saved)
-3. **Get Profile** → Verify user info
-4. **Upload Avatar** → Test gRPC integration
-5. **Update Profile** → Test update
-6. **Change Password** → Test security
-7. **Logout** → Clean session
-
-#### Common Headers
-
-```
-Content-Type: application/json
-Accept-Language: vi (or en)
-Authorization: Bearer {token}
-```
-
-#### Error Response Format
-
-```json
-{
-  "code": 2001,
-  "message": "User not found",
-  "timestamp": "2024-04-26T10:30:00"
-}
-```
-
----
-
-## 🔐 Security
-
-### JWT Authentication
 ```java
-// JWT Token Structure
-{
-  "sub": "user@example.com",
-  "userId": "123",
-  "roles": ["USER", "ADMIN"],
-  "iat": 1234567890,
-  "exp": 1234654290
-}
+@GrpcClient("file-service")
+private FileServiceRpcGrpc.FileServiceRpcBlockingStub stub;
 ```
 
-### Role-Based Access Control
-```java
-@PreAuthorize("hasRole('ADMIN')")
-public ApiResponse<List<UserResponse>> getAllUsers() {
-    // Only admins can access
-}
+Ten `"file-service"` phai khop config trong `grpc-client.yml`.
 
-@PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-public ApiResponse<UserResponse> getProfile() {
-    // Authenticated users can access
-}
+### gRPC client config
+
+`grpc-common/src/main/resources/grpc-client.yml` duoc auto-load khi import `grpc-common`.
+
+Config lien quan:
+
+```yaml
+grpc:
+  client:
+    file-service:
+      address: ${GRPC_FILE_SERVICE_ADDRESS:static://localhost:18083}
+      negotiation-type: plaintext
+      enable-keep-alive: true
+      keep-alive-time: 30s
+      keep-alive-timeout: 5s
+      max-inbound-message-size: 104857600
 ```
 
-### Account Locking
-- Lock after 5 failed login attempts
-- Auto-unlock after 30 minutes (scheduler)
-- Manual unlock by admin
+Env local/docker:
 
----
+```properties
+GRPC_FILE_SERVICE_ADDRESS=static://localhost:18083
+GRPC_USER_SERVICE_PORT=18081
+```
 
-## 📊 Database Schema
+Trong docker:
 
-### User Table
+```properties
+GRPC_FILE_SERVICE_ADDRESS=static://inf-file:18083
+```
+
+### Error handling
+
+`FileGrpcClient` nem `GrpcClientException` khi file-service tra business code khac success hoac gRPC transport loi.
+
+`GrpcFileClientImpl` map exception ve `ApiResponse<FileUploadResponse>` de `UserServiceImpl` xu ly nhu mot client adapter binh thuong.
+
+### Context/locale propagation
+
+`grpc-common` co cac interceptor dung chung:
+
+- `GrpcContextOutboundInterceptor`
+- `GrpcContextInboundInterceptor`
+- `GrpcLocaleInterceptor`
+- `GrpcExceptionTranslator`
+
+Khi mo rong gRPC moi, nen dung lai cac interceptor/metadata key trong `grpc-common` thay vi tu tao convention rieng.
+
+### Nguyen tac mo rong gRPC cho user-service
+
+- Neu user-service can goi service khac qua gRPC, them proto/wrapper client vao `grpc-common` truoc.
+- Business code trong user-service chi phu thuoc interface noi bo, vi du `FileClient`, khong dung protobuf stub truc tiep trong `UserServiceImpl`.
+- Ten `@GrpcClient(...)` phai khop `grpc-client.yml`.
+- Khong de logic business phu thuoc `StreamObserver`/protobuf generated class.
+- Neu user-service sau nay expose gRPC API cho service khac, tao interface service rieng trong `grpc-common` va implementation adapter, khong expose truc tiep repository/entity.
+
+## Notification integration
+
+`NotificationPublisher` la adapter notification cua user-service.
+
+Business flow user-service goi cac method nhu:
+
+- `sendOtpEmail`
+- `sendAccountVerificationEmail`
+- `sendPasswordResetVerificationEmail`
+- `sendLoginAlertEmail`
+- `sendUserStatusChangeNotification`
+- `sendWebSocketToUser`
+
+Ben trong, publisher build `NotificationRequestEvent` tu `notification-contract` va publish vao:
+
+```text
+notification.request.v1
+```
+
+Config:
+
+```yaml
+notification:
+  topics:
+    request: ${TOPIC_NOTIFICATION_REQUEST:notification.request.v1}
+```
+
+Quan trong:
+
+- User-service khong publish truc tiep `EmailNotificationEvent`.
+- User-service khong publish truc tiep `WebSocketNotificationEvent`.
+- Email nguoi nhan duoc dat trong `target.queryParams.emailByUserId`.
+- Locale duoc lay tu `Accept-Language`, dua vao `NotificationContent.locale`.
+
+Locale flow:
+
+```text
+Accept-Language
+  -> NotificationPublisher.currentLocale()
+  -> NotificationContent.locale
+  -> notification-service
+  -> EmailNotificationEvent.locale
+```
+
+### Kafka cua user-service
+
+User-service hien chi publish notification request moi qua Kafka topic public:
+
+```text
+notification.request.v1
+```
+
+Producer config:
+
+```yaml
+spring:
+  kafka:
+    producer:
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+```
+
+Topic config:
+
+```yaml
+notification:
+  topics:
+    request: ${TOPIC_NOTIFICATION_REQUEST:notification.request.v1}
+```
+
+Cac business action publish Kafka:
+
+| Flow | Method | `sourceAction` |
+| --- | --- | --- |
+| Forgot password OTP | `sendOtpEmail` | `send_otp_email` |
+| Registration OTP | `sendOtpEmail` | `send_otp_email` |
+| Login OTP | `sendOtpEmail` | `send_otp_email` |
+| Account verification | `sendAccountVerificationEmail` | `send_account_verification_email` |
+| Password reset verification | `sendPasswordResetVerificationEmail` | `send_password_reset_verification_email` |
+| Login alert | `sendLoginAlertEmail` | `send_login_alert_email` |
+| Lock/unlock/update user | `sendUserStatusChangeNotification` | `send_user_status_email` |
+| Welcome/realtime user message | `sendWebSocketToUser` | `send_realtime_to_user` |
+
+Sau khi publish, notification-service se xu ly tiep:
+
+```text
+notification.request.v1
+  -> notification_request
+  -> delivery job/batch
+  -> inbox/email/realtime
+```
+
+### Cach kiem tra Kafka publish
+
+Sau khi goi API user-service, kiem tra DB notification:
+
 ```sql
-CREATE TABLE users (
-    id UUID PRIMARY KEY,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password VARCHAR(255) NOT NULL,
-    full_name VARCHAR(255),
-    phone VARCHAR(20),
-    image_url VARCHAR(500),
-    status VARCHAR(20),
-    is_locked BOOLEAN DEFAULT FALSE,
-    locked_until TIMESTAMP,
-    failed_login_attempts INT DEFAULT 0,
-    email_verified BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP,
-    created_by VARCHAR(255),
-    updated_by VARCHAR(255)
-);
+SELECT id, source_service, source_action, request_payload
+FROM INF_NOTI.notification_request
+WHERE source_service = 'user-service'
+ORDER BY id DESC
+LIMIT 10;
 ```
 
-### Role Table
-```sql
-CREATE TABLE roles (
-    id UUID PRIMARY KEY,
-    name VARCHAR(50) UNIQUE NOT NULL,
-    description VARCHAR(255),
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP
-);
+Neu can consume truc tiep Kafka, consume topic:
 
-CREATE TABLE user_roles (
-    user_id UUID REFERENCES users(id),
-    role_id UUID REFERENCES roles(id),
-    PRIMARY KEY (user_id, role_id)
-);
+```text
+notification.request.v1
 ```
 
----
+## Scheduler
 
-## 🔄 Event Publishing
+`UserUnlockScheduler` chay moi ngay luc 00:00:
 
-### Kafka Events
-```java
-// User created event
-{
-  "eventType": "USER_CREATED",
-  "userId": "123",
-  "email": "user@example.com",
-  "timestamp": "2024-04-25T12:34:56"
-}
-
-// Email verification event
-{
-  "eventType": "EMAIL_VERIFICATION_REQUIRED",
-  "userId": "123",
-  "email": "user@example.com",
-  "verificationToken": "abc123"
-}
-
-// Password reset event
-{
-  "eventType": "PASSWORD_RESET_REQUESTED",
-  "userId": "123",
-  "email": "user@example.com",
-  "resetToken": "xyz789"
-}
+```text
+0 0 0 * * ?
 ```
 
----
+Nhiem vu:
 
-## 🧪 Testing
+- tim user dang `LOCKED`
+- `lockTime <= now`
+- mo khoa user
+- gui notification auto unlock
 
-### Unit Tests
-```bash
-mvn test
+### Background jobs cua user-service
+
+| Job/background work | Class | Trigger | Viec lam |
+| --- | --- | --- | --- |
+| Auto unlock user | `UserUnlockScheduler` | Cron `0 0 0 * * ?` | Mo khoa user co `LOCK_TIME <= now`, gui notification auto unlock |
+| Upload file async callback | `GrpcFileClientImpl.uploadFileAsync` | `@Async` khi caller dung async upload | Upload file qua gRPC va callback ket qua |
+| Delete old avatar async | `GrpcFileClientImpl.deleteFileAsync` | Sau khi avatar moi duoc luu | Xoa avatar cu qua gRPC, loi chi log |
+
+Luu y:
+
+- Scheduler can `@EnableScheduling` trong app/config lien quan.
+- Async task can `@EnableAsync`/async config.
+- Job auto unlock chi xu ly user co lock time; khoa vinh vien `lockTime = null` se khong auto unlock.
+
+## I18n
+
+Response message dung common i18n va `Accept-Language`.
+
+Vi du:
+
+```http
+Accept-Language: vi
 ```
 
-### Integration Tests
-```bash
-mvn verify
-```
+Forgot password co the tra response tieng Viet, dong thoi notification/email cung nhan locale `vi`.
 
-### Test với gRPC
-```java
-@SpringBootTest
-class UserServiceIntegrationTest {
-    
-    @MockBean
-    private FileGrpcClient fileGrpcClient;
-    
-    @Test
-    void testUploadAvatar() {
-        // Mock gRPC response
-        FileInfo mockFileInfo = FileInfo.newBuilder()
-            .setFileUrl("http://example.com/avatar.jpg")
-            .build();
-            
-        when(fileGrpcClient.uploadFile(any(), any(), any(), any(), any()))
-            .thenReturn(mockFileInfo);
-        
-        // Test
-        ApiResponse<UserResponse> response = userService.updateAvatar(userId, avatar);
-        
-        assertEquals(StatusCode.SUCCESS.getCode(), response.getCode());
-    }
-}
-```
+## External dependencies
 
----
-
-## 📈 Monitoring
-
-### Health Check
-```bash
-curl http://localhost:8081/actuator/health
-```
-
-### Metrics
-```bash
-curl http://localhost:8081/actuator/metrics
-```
-
-### gRPC Channel Health
-```bash
-curl http://localhost:8081/actuator/health/grpcChannel
-```
-
----
-
-## 🚀 Deployment
-
-### Docker
-```dockerfile
-FROM openjdk:21-jdk-slim
-COPY target/user-service-1.0.0-SNAPSHOT.jar app.jar
-ENTRYPOINT ["java", "-jar", "/app.jar"]
-```
-
-### Required Environment Variables
-
-See `.env.properties` file in project root for all configuration keys.
-
-**Critical Variables:**
-- `DB_USERNAME`, `DB_PASSWORD` - Database credentials
-- `SECRET_KEY` - JWT signing key
-- `GRPC_FILE_SERVICE_PORT` - gRPC port for file-service
-- `KAFKA_BOOTSTRAP_SERVERS` - Kafka connection
-- `REDIS_HOST`, `REDIS_PORT` - Redis connection
-
----
-
-## 🔧 Troubleshooting
-
-### Issue: gRPC connection failed
-```
-io.grpc.StatusRuntimeException: UNAVAILABLE
-```
-**Solution**: Check file-service is running và port 18083 accessible
-```
-io.grpc.StatusRuntimeException: UNAVAILABLE
-```
-**Solution**: Check file-service is running và port 18083 accessible
-
-### Issue: JWT token invalid
-```
-401 Unauthorized
-```
-**Solution**: Check JWT secret matches và token chưa expired
-
-### Issue: Avatar upload failed
-```
-GrpcClientException: code=2002
-```
-**Solution**: Check file-service logs và MinIO connection
-
----
-
-## 📚 Dependencies
-
-- Spring Boot 3.x (4.0.5)
-- Spring Security
-- Spring Data JPA
 - PostgreSQL
 - Redis
 - Kafka
-- gRPC (grpc-common with grpc-spring-boot-starter 3.1.0.RELEASE)
-- JWT (jjwt)
-- Lombok
+- file-service
+- notification-service
+- MinIO thong qua file-service
+- common
+- grpc-common
+- notification-contract
 
-**Version Compatibility Note:**
-- Project uses Spring Boot `4.0.5` (Spring Boot 3.x series)
-- grpc-spring-boot-starter `3.1.0.RELEASE` is compatible
-- If upgrading Spring Boot, verify grpc-spring-boot-starter compatibility
+## Build va run
 
----
+Build rieng user-service:
 
-## 🎯 Future Enhancements
-
-- [ ] OAuth2 với nhiều providers (GitHub, Twitter)
-- [ ] Two-factor authentication (2FA)
-- [ ] User activity logging
-- [ ] Advanced search với Elasticsearch
-- [ ] Rate limiting
-- [ ] API versioning
-- [ ] GraphQL support
-
----
-
-## 🚀 Quick Start Testing Guide
-
-### 1. Start Required Services
 ```bash
-# PostgreSQL (port 5432)
-# Redis (port 6379)
-# Kafka (port 9092)
-# MinIO (port 9000)
-# file-service with gRPC (port 18083)
-# user-service (port 8081)
+mvn -pl user-service -am -DskipTests clean compile
 ```
 
-### 2. Quick Test Flow
+Build cung notification:
+
 ```bash
-# Step 1: Register (with avatar)
-curl -X POST http://localhost:8081/v1/api/auth/register \
-  -H "Accept-Language: vi" \
-  -F 'request={"username":"testuser","password":"Test123!","name":"Test User","email":"test@example.com"}' \
-  -F 'avatar=@avatar.jpg'
-
-# Step 2: Register (without avatar)
-curl -X POST http://localhost:8081/v1/api/auth/register \
-  -H "Accept-Language: vi" \
-  -F 'request={"username":"testuser2","password":"Test123!","name":"Test User 2","email":"test2@example.com"}'
-
-# Step 3: Login (save the token)
-curl -X POST http://localhost:8081/v1/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"testuser","password":"Test123!"}'
-
-# Step 4: Get Profile (use token from step 3)
-curl -X GET http://localhost:8081/api/v1/users/profile \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
-
-# Step 5: Upload Avatar (test gRPC integration)
-curl -X POST http://localhost:8081/api/v1/users/avatar \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
-  -F "file=@avatar.jpg"
+mvn -pl user-service,notification -am -DskipTests clean compile
 ```
 
-### 3. Import to Postman
-1. Create new collection "User Service"
-2. Add environment variable `base_url` = `http://localhost:8081`
-3. Copy curl commands above
-4. Import as cURL
-5. Set up auto-save token script in Login request
+Run local can dam bao:
 
-### 4. Verify gRPC Integration
-- Upload avatar → Check file-service logs for gRPC call on port 18083
-- Old avatar should be deleted async
-- New avatar URL should be in user profile
+- PostgreSQL dang chay
+- Redis dang chay
+- Kafka dang chay
+- file-service dang chay neu test avatar
+- notification-service dang chay neu test email/realtime notification
 
----
+## Test nhanh service
 
-**Version**: 1.0.0  
-**Status**: Production Ready  
-**Last Updated**: 2024-04-26
+1. Start infra va service lien quan.
+2. Goi forgot password:
+
+```bash
+curl --location 'http://localhost:8081/v1/api/auth/forgot-password' \
+  --header 'Content-Type: application/json' \
+  --header 'Accept-Language: vi' \
+  --data-raw '{"email":"user@example.com"}'
+```
+
+3. Kiem tra user-service response dung ngon ngu.
+4. Kiem tra notification-service co request tu user-service:
+
+```sql
+SELECT id, source_service, source_action, request_payload
+FROM INF_NOTI.notification_request
+ORDER BY id DESC
+LIMIT 5;
+```
+
+5. Kiem tra email log:
+
+```sql
+SELECT id, to_email, status, payload
+FROM INF_NOTI.email_delivery_log
+ORDER BY id DESC
+LIMIT 5;
+```
+
+## Luu y khi sua code
+
+- Neu them flow user moi can gui email/realtime, them helper vao `NotificationPublisher` hoac dung `publishNotificationRequest`.
+- Neu flow can email template, dat `emailType` va bien template vao `content.templateVars`.
+- Neu flow can locale, giu `Accept-Language` tu request.
+- Neu can query user theo role/segment cho notification, khong lam trong user-service bang cach publish event cu; can thiet ke target resolver/read model cho notification-service.

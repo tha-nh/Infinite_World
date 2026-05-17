@@ -60,6 +60,8 @@ public class AuthnFilter {
             
             // Extract username and roles from JWT
             String username = claims.getSubject();
+            Object userIdClaim = claims.get("userId");
+            String userId = userIdClaim != null ? String.valueOf(userIdClaim) : username;
             @SuppressWarnings("unchecked")
             List<String> rolesList = claims.get("roles", List.class);
             Set<String> roles = rolesList != null ? Set.copyOf(rolesList) : Set.of();
@@ -73,11 +75,9 @@ public class AuthnFilter {
                 }
             }
             
-            // Add user info to request headers for downstream services
-            exchange.getRequest().mutate()
-                    .header("X-USER-ID", username)
-                    .header("X-USER-ROLES", String.join(",", roles))
-                    .build();
+            exchange.getAttributes().put("auth.userId", userId);
+            exchange.getAttributes().put("auth.username", username);
+            exchange.getAttributes().put("auth.roles", String.join(",", roles));
             
             return true;
         } catch (JwtException | IllegalArgumentException ex) {

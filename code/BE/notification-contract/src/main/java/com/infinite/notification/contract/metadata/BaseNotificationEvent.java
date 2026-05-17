@@ -1,6 +1,7 @@
 package com.infinite.notification.contract.metadata;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -21,6 +22,7 @@ public abstract class BaseNotificationEvent {
     /**
      * Unique event identifier
      */
+    @NotBlank(message = "eventId is required")
     private String eventId;
     
     /**
@@ -36,6 +38,7 @@ public abstract class BaseNotificationEvent {
     /**
      * Source service name
      */
+    @NotBlank(message = "sourceService is required")
     private String sourceService;
     
     /**
@@ -51,6 +54,7 @@ public abstract class BaseNotificationEvent {
     /**
      * Contract schema version
      */
+    @NotBlank(message = "schemaVersion is required")
     private String schemaVersion;
     
     /**
@@ -67,5 +71,6 @@ public abstract class BaseNotificationEvent {
     /**
      * Idempotency key to prevent duplicate processing
      */
+    @NotBlank(message = "idempotencyKey is required")
     private String idempotencyKey;
 }

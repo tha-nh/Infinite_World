@@ -6,6 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.core.env.Environment;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -13,6 +14,7 @@ import java.util.Optional;
 
 @Slf4j
 @EnableAsync
+@EnableScheduling
 @EnableAspectJAutoProxy
 @SpringBootApplication(scanBasePackages = {"com.infinite.notification", "com.infinite.common"})
 public class NotificationApplication {

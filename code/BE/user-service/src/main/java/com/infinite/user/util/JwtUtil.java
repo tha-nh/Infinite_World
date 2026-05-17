@@ -45,6 +45,17 @@ public class JwtUtil {
                 .compact();
     }
 
+    public String generateToken(String username, Long userId, Set<String> roles) {
+        return Jwts.builder()
+                .setSubject(username)
+                .claim("userId", userId)
+                .claim("roles", roles)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + jwtExpirationMs))
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
     public String generateToken() {
         return Jwts.builder()
                 .setIssuedAt(new Date())

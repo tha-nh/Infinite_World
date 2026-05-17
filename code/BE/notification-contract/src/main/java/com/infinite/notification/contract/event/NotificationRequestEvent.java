@@ -6,6 +6,9 @@ import com.infinite.notification.contract.dto.NotificationReward;
 import com.infinite.notification.contract.dto.NotificationTarget;
 import com.infinite.notification.contract.enumtype.NotificationChannel;
 import com.infinite.notification.contract.metadata.BaseNotificationEvent;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -30,26 +33,33 @@ public class NotificationRequestEvent extends BaseNotificationEvent {
     /**
      * Delivery channels for this notification
      */
+    @NotEmpty(message = "channels is required")
     private Set<NotificationChannel> channels;
     
     /**
      * Target audience
      */
+    @Valid
+    @NotNull(message = "target is required")
     private NotificationTarget target;
     
     /**
      * Notification content
      */
+    @Valid
+    @NotNull(message = "content is required")
     private NotificationContent content;
     
     /**
      * Action to perform on interaction
      */
+    @Valid
     private NotificationAction action;
     
     /**
      * Reward attached to notification (optional)
      */
+    @Valid
     private NotificationReward reward;
     
     /**

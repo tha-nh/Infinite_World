@@ -2,6 +2,8 @@ package com.infinite.notification.consumer;
 
 import com.infinite.common.dto.event.EmailNotificationEvent;
 import com.infinite.notification.dto.request.EmailRequest;
+import com.infinite.notification.infrastructure.observability.NotificationMetrics;
+import com.infinite.notification.infrastructure.persistence.repository.EmailDeliveryLogRepository;
 import com.infinite.notification.messaging.MessageConsumer;
 import com.infinite.notification.service.EmailService;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +18,7 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
 import java.util.Locale;
+import java.time.Instant;
 
 /**
  * Kafka consumer for email notifications
@@ -29,6 +32,8 @@ import java.util.Locale;
 public class EmailNotificationConsumer implements MessageConsumer {
     
     private final EmailService emailService;
+    private final EmailDeliveryLogRepository emailDeliveryLogRepository;
+    private final NotificationMetrics metrics;
     
     @KafkaListener(
         topics = "${messaging.topics.email:notification.email}",
@@ -62,14 +67,19 @@ public class EmailNotificationConsumer implements MessageConsumer {
             }
             
             // Acknowledge message
+            markEmailLogSent(event);
             acknowledgment.acknowledge();
+            metrics.increment("email.sent");
             log.info("Email sent successfully to: {} with type: {}", event.getTo(), event.getEmailType());
             
         } catch (Exception e) {
             log.error("Failed to process email notification from topic: {}, partition: {}, offset: {}", 
                 topic, partition, offset, e);
-            // Don't acknowledge - message will be redelivered
-            // TODO: Implement DLQ (Dead Letter Queue) for failed messages after max retries
+            boolean terminalFailure = markEmailLogFailed(event, e);
+            metrics.increment("email.failed");
+            if (terminalFailure) {
+                acknowledgment.acknowledge();
+            }
         } finally {
             LocaleContextHolder.resetLocaleContext();
         }
@@ -104,5 +114,27 @@ public class EmailNotificationConsumer implements MessageConsumer {
             log.error("Unable to handle legacy email event - missing required fields");
             throw new IllegalArgumentException("Legacy email event missing required fields");
         }
+    }
+
+    private void markEmailLogSent(EmailNotificationEvent event) {
+        emailDeliveryLogRepository.findByEventId(event.getEventId()).ifPresent(logEntry -> {
+            logEntry.setStatus("SENT");
+            logEntry.setSentAt(Instant.now());
+            logEntry.setErrorMessage(null);
+            emailDeliveryLogRepository.save(logEntry);
+        });
+    }
+
+    private boolean markEmailLogFailed(EmailNotificationEvent event, Exception ex) {
+        return emailDeliveryLogRepository.findByEventId(event.getEventId())
+                .map(logEntry -> {
+                    int retryCount = logEntry.getRetryCount() == null ? 1 : logEntry.getRetryCount() + 1;
+                    logEntry.setRetryCount(retryCount);
+                    logEntry.setErrorMessage(ex.getMessage());
+                    logEntry.setStatus(retryCount >= 3 ? "FAILED" : "PENDING");
+                    emailDeliveryLogRepository.save(logEntry);
+                    return retryCount >= 3;
+                })
+                .orElse(false);
     }
 }

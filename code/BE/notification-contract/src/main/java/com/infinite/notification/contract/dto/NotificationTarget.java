@@ -1,6 +1,7 @@
 package com.infinite.notification.contract.dto;
 
 import com.infinite.notification.contract.enumtype.NotificationTargetType;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -21,6 +22,7 @@ public class NotificationTarget {
     /**
      * Type of target
      */
+    @NotNull(message = "target.type is required")
     private NotificationTargetType type;
     
     /**

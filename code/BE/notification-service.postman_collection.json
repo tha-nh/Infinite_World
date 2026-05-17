@@ -1,0 +1,398 @@
+{
+  "info": {
+    "name": "Notification Service - BUOC2",
+    "description": "API collection for testing notification-service after completing BUOC2",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "123",
+      "type": "string"
+    },
+    {
+      "key": "notificationId",
+      "value": "1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Internal API",
+      "item": [
+        {
+          "name": "Create Notification Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"schemaVersion\": \"v1\",\n  \"eventId\": \"evt-{{$timestamp}}\",\n  \"requestId\": \"req-{{$timestamp}}\",\n  \"traceId\": \"trace-{{$timestamp}}\",\n  \"sourceService\": \"user-service\",\n  \"sourceModule\": \"auth\",\n  \"sourceAction\": \"user_registered\",\n  \"idempotencyKey\": \"user_registered:user-{{$timestamp}}\",\n  \"channels\": [\"INBOX\", \"REALTIME\"],\n  \"target\": {\n    \"type\": \"USER_IDS\",\n    \"userIds\": [123, 456]\n  },\n  \"content\": {\n    \"type\": \"SYSTEM\",\n    \"priority\": 1,\n    \"title\": \"Chào mừng bạn đến với hệ thống\",\n    \"body\": \"Tài khoản của bạn đã được tạo thành công. Hãy bắt đầu khám phá!\"\n  },\n  \"action\": {\n    \"actionType\": \"OPEN_SCREEN\",\n    \"screen\": \"profile\",\n    \"payload\": {}\n  },\n  \"metadata\": {\n    \"businessId\": \"user-123\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/internal/notifications/requests",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "internal", "notifications", "requests"]
+            }
+          }
+        },
+        {
+          "name": "Create Notification Request - Idempotency Test",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"schemaVersion\": \"v1\",\n  \"eventId\": \"evt-idempotency-test\",\n  \"requestId\": \"req-idempotency-test\",\n  \"traceId\": \"trace-idempotency-test\",\n  \"sourceService\": \"test-service\",\n  \"sourceModule\": \"test\",\n  \"sourceAction\": \"test_action\",\n  \"idempotencyKey\": \"test-idempotency-key-001\",\n  \"channels\": [\"INBOX\"],\n  \"target\": {\n    \"type\": \"USER_IDS\",\n    \"userIds\": [123]\n  },\n  \"content\": {\n    \"type\": \"SYSTEM\",\n    \"priority\": 1,\n    \"title\": \"Test Idempotency\",\n    \"body\": \"This should not create duplicate\"\n  },\n  \"metadata\": {}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/internal/notifications/requests",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "internal", "notifications", "requests"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin API",
+      "item": [
+        {
+          "name": "Create Notification (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"schemaVersion\": \"v1\",\n  \"eventId\": \"admin-evt-{{$timestamp}}\",\n  \"requestId\": \"admin-req-{{$timestamp}}\",\n  \"traceId\": \"admin-trace-{{$timestamp}}\",\n  \"sourceService\": \"admin-service\",\n  \"sourceModule\": \"campaign\",\n  \"sourceAction\": \"manual_create\",\n  \"idempotencyKey\": \"admin_campaign:camp-{{$timestamp}}\",\n  \"channels\": [\"INBOX\", \"EMAIL\"],\n  \"target\": {\n    \"type\": \"ALL_USERS\"\n  },\n  \"content\": {\n    \"type\": \"PROMOTION\",\n    \"priority\": 2,\n    \"title\": \"Sự kiện đặc biệt\",\n    \"body\": \"Tham gia sự kiện để nhận quà hấp dẫn!\",\n    \"imageUrl\": \"https://example.com/event.jpg\"\n  },\n  \"action\": {\n    \"actionType\": \"OPEN_URL\",\n    \"url\": \"https://example.com/event\",\n    \"payload\": {}\n  },\n  \"reward\": {\n    \"type\": \"GOLD\",\n    \"amount\": 1000,\n    \"metadata\": {}\n  },\n  \"metadata\": {\n    \"campaignId\": \"camp-001\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/notifications",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "notifications"]
+            }
+          }
+        },
+        {
+          "name": "List Notifications",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/notifications?page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "notifications"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                },
+                {
+                  "key": "status",
+                  "value": "PENDING",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Notification Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/notifications/{{notificationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "notifications", "{{notificationId}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Delivery Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/notifications/{{notificationId}}/delivery-summary",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "notifications", "{{notificationId}}", "delivery-summary"]
+            }
+          }
+        },
+        {
+          "name": "Cancel Notification (Not Implemented)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/notifications/{{notificationId}}/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "notifications", "{{notificationId}}", "cancel"]
+            }
+          }
+        },
+        {
+          "name": "Retry Notification (Not Implemented)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/notifications/{{notificationId}}/retry",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "notifications", "{{notificationId}}", "retry"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Client API",
+      "item": [
+        {
+          "name": "Get User Inbox",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications?userId={{userId}}&page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "{{userId}}"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Unread Count",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/unread-count?userId={{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications", "unread-count"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "{{userId}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Unread Count (Vietnamese)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept-Language",
+                "value": "vi"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/unread-count?userId={{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications", "unread-count"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "{{userId}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Mark as Read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": {{userId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/{{notificationId}}/read",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications", "{{notificationId}}", "read"]
+            }
+          }
+        },
+        {
+          "name": "Mark All as Read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": {{userId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/read-all",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications", "read-all"]
+            }
+          }
+        },
+        {
+          "name": "Delete Notification",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": {{userId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/{{notificationId}}/delete",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications", "{{notificationId}}", "delete"]
+            }
+          }
+        },
+        {
+          "name": "Claim Reward",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": {{userId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/{{notificationId}}/claim",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications", "{{notificationId}}", "claim"]
+            }
+          }
+        },
+        {
+          "name": "Claim Reward - Already Claimed (Error)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": {{userId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/{{notificationId}}/claim",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications", "{{notificationId}}", "claim"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Validation Tests",
+      "item": [
+        {
+          "name": "Mark as Read - Missing userId (Error)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/1/read",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications", "1", "read"]
+            }
+          }
+        },
+        {
+          "name": "Claim - Missing userId (Error)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/1/claim",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications", "1", "claim"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

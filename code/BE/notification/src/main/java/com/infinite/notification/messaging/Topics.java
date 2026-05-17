@@ -11,6 +11,8 @@ public final class Topics {
     }
     
     // Notification topics
+    public static final String NOTIFICATION_DELIVERY_REQUESTED = "notification.delivery.requested";
+    public static final String NOTIFICATION_DELIVERY_BATCH_REQUESTED = "notification.delivery.batch.requested";
     public static final String EMAIL_NOTIFICATION = "notification.email";
     public static final String WEBSOCKET_NOTIFICATION = "notification.websocket";
     

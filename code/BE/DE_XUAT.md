@@ -1,32 +1,32 @@
-# Thiết kế chuẩn cho `notification-service` của Infinite World
+﻿# Thiáº¿t káº¿ chuáº©n cho `notification-service` cá»§a Infinite World
 
-## 1. Mục tiêu cuối cùng
+## 1. Má»¥c tiÃªu cuá»‘i cÃ¹ng
 
-Tài liệu này chốt thiết kế `notification-service` theo hướng dùng lâu dài, để các service khác chỉ cần tích hợp theo contract chung rồi dùng ổn định về sau, không phải sửa kiến trúc liên tục.
+TÃ i liá»‡u nÃ y chá»‘t thiáº¿t káº¿ `notification-service` theo hÆ°á»›ng dÃ¹ng lÃ¢u dÃ i, Ä‘á»ƒ cÃ¡c service khÃ¡c chá»‰ cáº§n tÃ­ch há»£p theo contract chung rá»“i dÃ¹ng á»•n Ä‘á»‹nh vá» sau, khÃ´ng pháº£i sá»­a kiáº¿n trÃºc liÃªn tá»¥c.
 
-Mục tiêu chính:
+Má»¥c tiÃªu chÃ­nh:
 
-- `notification-service` là service chuyên trách duy nhất cho thông báo
-- các service khác không tự gửi email/WebSocket trực tiếp
-- mọi loại thông báo đều đi qua contract chuẩn
-- scale tốt tới 1.000.000 user
-- maintain tốt, code clean, dễ audit, dễ retry, dễ mở rộng
+- `notification-service` lÃ  service chuyÃªn trÃ¡ch duy nháº¥t cho thÃ´ng bÃ¡o
+- cÃ¡c service khÃ¡c khÃ´ng tá»± gá»­i email/WebSocket trá»±c tiáº¿p
+- má»i loáº¡i thÃ´ng bÃ¡o Ä‘á»u Ä‘i qua contract chuáº©n
+- scale tá»‘t tá»›i 1.000.000 user
+- maintain tá»‘t, code clean, dá»… audit, dá»… retry, dá»… má»Ÿ rá»™ng
 
-Mục tiêu kỹ thuật:
+Má»¥c tiÃªu ká»¹ thuáº­t:
 
-- không fanout trong request
-- không gửi trùng khi retry
-- có delivery log đầy đủ
-- có mô hình tích hợp dùng chung cho tất cả service
-- có versioning contract để không phá vỡ tích hợp cũ
+- khÃ´ng fanout trong request
+- khÃ´ng gá»­i trÃ¹ng khi retry
+- cÃ³ delivery log Ä‘áº§y Ä‘á»§
+- cÃ³ mÃ´ hÃ¬nh tÃ­ch há»£p dÃ¹ng chung cho táº¥t cáº£ service
+- cÃ³ versioning contract Ä‘á»ƒ khÃ´ng phÃ¡ vá»¡ tÃ­ch há»£p cÅ©
 
 ---
 
-## 2. Quyết định kiến trúc chốt
+## 2. Quyáº¿t Ä‘á»‹nh kiáº¿n trÃºc chá»‘t
 
-`notification-service` sẽ là nền tảng thông báo dùng chung cho toàn hệ thống.
+`notification-service` sáº½ lÃ  ná»n táº£ng thÃ´ng bÃ¡o dÃ¹ng chung cho toÃ n há»‡ thá»‘ng.
 
-Các service khác như:
+CÃ¡c service khÃ¡c nhÆ°:
 
 - `user-service`
 - `game-service`
@@ -34,172 +34,172 @@ Các service khác như:
 - `event-service`
 - `admin-service`
 
-không nên tự xử lý gửi notification ra ngoài, mà chỉ:
+khÃ´ng nÃªn tá»± xá»­ lÃ½ gá»­i notification ra ngoÃ i, mÃ  chá»‰:
 
-- gọi API của `notification-service`, hoặc
-- publish event chuẩn dùng chung vào Kafka
+- gá»i API cá»§a `notification-service`, hoáº·c
+- publish event chuáº©n dÃ¹ng chung vÃ o Kafka
 
-`notification-service` chịu trách nhiệm:
+`notification-service` chá»‹u trÃ¡ch nhiá»‡m:
 
-- nhận yêu cầu gửi thông báo
+- nháº­n yÃªu cáº§u gá»­i thÃ´ng bÃ¡o
 - validate request
-- persist dữ liệu
-- fanout tới user
+- persist dá»¯ liá»‡u
+- fanout tá»›i user
 - push realtime
-- gửi email
+- gá»­i email
 - ghi log delivery
 - retry / DLQ / audit
 
-Đây là hướng tốt nhất nếu muốn về sau chỉ mở rộng chứ không phải sửa lại nền.
+ÄÃ¢y lÃ  hÆ°á»›ng tá»‘t nháº¥t náº¿u muá»‘n vá» sau chá»‰ má»Ÿ rá»™ng chá»© khÃ´ng pháº£i sá»­a láº¡i ná»n.
 
 ---
 
-## 3. Phân lớp trách nhiệm
+## 3. PhÃ¢n lá»›p trÃ¡ch nhiá»‡m
 
-Để code clean và service boundary rõ ràng, phải tách 3 lớp:
+Äá»ƒ code clean vÃ  service boundary rÃµ rÃ ng, pháº£i tÃ¡ch 3 lá»›p:
 
 ### 3.1. Notification Request Layer
 
-Là nơi nhận yêu cầu từ service khác.
+LÃ  nÆ¡i nháº­n yÃªu cáº§u tá»« service khÃ¡c.
 
-Nguồn vào có thể là:
+Nguá»“n vÃ o cÃ³ thá»ƒ lÃ :
 
-- REST API đồng bộ
-- Kafka event bất đồng bộ
+- REST API Ä‘á»“ng bá»™
+- Kafka event báº¥t Ä‘á»“ng bá»™
 
-Layer này chỉ làm:
+Layer nÃ y chá»‰ lÃ m:
 
-- xác thực caller
+- xÃ¡c thá»±c caller
 - validate contract
-- ghi nhận request
-- tạo command/job xử lý tiếp
+- ghi nháº­n request
+- táº¡o command/job xá»­ lÃ½ tiáº¿p
 
 ### 3.2. Notification Domain Layer
 
-Là lõi nghiệp vụ của `notification-service`.
+LÃ  lÃµi nghiá»‡p vá»¥ cá»§a `notification-service`.
 
-Phụ trách:
+Phá»¥ trÃ¡ch:
 
-- phân loại notification
-- áp rule người nhận
-- tạo campaign
-- tạo inbox records
-- cập nhật trạng thái read/claim
-- tạo delivery logs
+- phÃ¢n loáº¡i notification
+- Ã¡p rule ngÆ°á»i nháº­n
+- táº¡o campaign
+- táº¡o inbox records
+- cáº­p nháº­t tráº¡ng thÃ¡i read/claim
+- táº¡o delivery logs
 
 ### 3.3. Notification Delivery Layer
 
-Phụ trách gửi ra ngoài:
+Phá»¥ trÃ¡ch gá»­i ra ngoÃ i:
 
 - WebSocket / realtime
 - email
 
-Layer này không tự quyết định nghiệp vụ, chỉ làm delivery theo command chuẩn.
+Layer nÃ y khÃ´ng tá»± quyáº¿t Ä‘á»‹nh nghiá»‡p vá»¥, chá»‰ lÃ m delivery theo command chuáº©n.
 
 ---
 
-## 4. Những nguyên tắc phải giữ để không phải sửa kiến trúc về sau
+## 4. Nhá»¯ng nguyÃªn táº¯c pháº£i giá»¯ Ä‘á»ƒ khÃ´ng pháº£i sá»­a kiáº¿n trÃºc vá» sau
 
-### 4.1. Tất cả notification phải đi qua contract chuẩn
+### 4.1. Táº¥t cáº£ notification pháº£i Ä‘i qua contract chuáº©n
 
-Không cho phép mỗi service tự định nghĩa payload notification riêng theo ý mình.
+KhÃ´ng cho phÃ©p má»—i service tá»± Ä‘á»‹nh nghÄ©a payload notification riÃªng theo Ã½ mÃ¬nh.
 
-Phải có model dùng chung.
+Pháº£i cÃ³ model dÃ¹ng chung.
 
-### 4.2. Tách request contract và delivery contract
+### 4.2. TÃ¡ch request contract vÃ  delivery contract
 
-Service gọi vào chỉ nên biết:
+Service gá»i vÃ o chá»‰ nÃªn biáº¿t:
 
-- muốn gửi gì
-- gửi cho ai
-- metadata nghiệp vụ là gì
+- muá»‘n gá»­i gÃ¬
+- gá»­i cho ai
+- metadata nghiá»‡p vá»¥ lÃ  gÃ¬
 
-Service gọi vào không nên biết quá sâu:
+Service gá»i vÃ o khÃ´ng nÃªn biáº¿t quÃ¡ sÃ¢u:
 
-- batch size là bao nhiêu
-- Kafka topic nội bộ nào dùng để fanout
-- delivery provider nào đang được dùng
+- batch size lÃ  bao nhiÃªu
+- Kafka topic ná»™i bá»™ nÃ o dÃ¹ng Ä‘á»ƒ fanout
+- delivery provider nÃ o Ä‘ang Ä‘Æ°á»£c dÃ¹ng
 
-### 4.3. Dùng `notification-contract` làm nơi chứa contract dùng chung
+### 4.3. DÃ¹ng `notification-contract` lÃ m nÆ¡i chá»©a contract dÃ¹ng chung
 
-Repo hiện tại đã có `common.dto.event`.
+Repo hiá»‡n táº¡i Ä‘Ã£ cÃ³ `common.dto.event`.
 
-Nhưng hướng đúng về lâu dài là tách riêng `notification-contract` để chứa:
+NhÆ°ng hÆ°á»›ng Ä‘Ãºng vá» lÃ¢u dÃ i lÃ  tÃ¡ch riÃªng `notification-contract` Ä‘á»ƒ chá»©a:
 
 - notification request event
 - realtime event
 - email request event
-- enum dùng chung
+- enum dÃ¹ng chung
 - idempotency metadata
 - tracing metadata
 
-Không để từng service copy/paste DTO.
+KhÃ´ng Ä‘á»ƒ tá»«ng service copy/paste DTO.
 
-### 4.4. Contract phải versioned
+### 4.4. Contract pháº£i versioned
 
-Nếu sau này thay đổi payload, phải version.
+Náº¿u sau nÃ y thay Ä‘á»•i payload, pháº£i version.
 
-Ví dụ:
+VÃ­ dá»¥:
 
 - `notification.request.v1`
 - `notification.request.v2`
 
-Hoặc trong DTO có:
+Hoáº·c trong DTO cÃ³:
 
 - `schemaVersion`
 
-Nếu không làm điều này ngay từ đầu thì sau này chỉ cần 2 service nâng cấp lệch version là sẽ rối.
+Náº¿u khÃ´ng lÃ m Ä‘iá»u nÃ y ngay tá»« Ä‘áº§u thÃ¬ sau nÃ y chá»‰ cáº§n 2 service nÃ¢ng cáº¥p lá»‡ch version lÃ  sáº½ rá»‘i.
 
 ---
 
-## 5. Mô hình tích hợp chuẩn cho các service khác
+## 5. MÃ´ hÃ¬nh tÃ­ch há»£p chuáº©n cho cÃ¡c service khÃ¡c
 
-Về lâu dài nên hỗ trợ cả 2 kiểu tích hợp:
+Vá» lÃ¢u dÃ i nÃªn há»— trá»£ cáº£ 2 kiá»ƒu tÃ­ch há»£p:
 
-## 5.1. Cách 1: REST API
+## 5.1. CÃ¡ch 1: REST API
 
-Phù hợp khi service caller cần:
+PhÃ¹ há»£p khi service caller cáº§n:
 
-- biết kết quả ngay
-- tạo notification theo thao tác admin
-- đồng bộ trạng thái dễ hơn
+- biáº¿t káº¿t quáº£ ngay
+- táº¡o notification theo thao tÃ¡c admin
+- Ä‘á»“ng bá»™ tráº¡ng thÃ¡i dá»… hÆ¡n
 
-Ví dụ:
+VÃ­ dá»¥:
 
-- admin tạo campaign
-- game master tạo mail/quà
+- admin táº¡o campaign
+- game master táº¡o mail/quÃ 
 
-## 5.2. Cách 2: Kafka event
+## 5.2. CÃ¡ch 2: Kafka event
 
-Phù hợp khi service caller chỉ phát sinh domain event.
+PhÃ¹ há»£p khi service caller chá»‰ phÃ¡t sinh domain event.
 
-Ví dụ:
+VÃ­ dá»¥:
 
-- user đăng ký thành công
-- user bị khóa
-- event ingame bắt đầu
-- thanh toán thành công
+- user Ä‘Äƒng kÃ½ thÃ nh cÃ´ng
+- user bá»‹ khÃ³a
+- event ingame báº¯t Ä‘áº§u
+- thanh toÃ¡n thÃ nh cÃ´ng
 
-Service phát sinh event chỉ publish một event chuẩn, `notification-service` tự quyết định gửi gì tiếp.
+Service phÃ¡t sinh event chá»‰ publish má»™t event chuáº©n, `notification-service` tá»± quyáº¿t Ä‘á»‹nh gá»­i gÃ¬ tiáº¿p.
 
-## 5.3. Khuyến nghị chốt
+## 5.3. Khuyáº¿n nghá»‹ chá»‘t
 
-Nên dùng cả 2:
+NÃªn dÃ¹ng cáº£ 2:
 
-- REST cho command nghiệp vụ trực tiếp
-- Kafka cho domain event tự động
+- REST cho command nghiá»‡p vá»¥ trá»±c tiáº¿p
+- Kafka cho domain event tá»± Ä‘á»™ng
 
-Đây là mô hình cân bằng nhất và ít phải đập đi làm lại sau này.
+ÄÃ¢y lÃ  mÃ´ hÃ¬nh cÃ¢n báº±ng nháº¥t vÃ  Ã­t pháº£i Ä‘áº­p Ä‘i lÃ m láº¡i sau nÃ y.
 
 ---
 
-## 6. Contract dùng chung phải có trong `notification-contract`
+## 6. Contract dÃ¹ng chung pháº£i cÃ³ trong `notification-contract`
 
-Phần này là trọng tâm để các service khác tái sử dụng sạch sẽ.
+Pháº§n nÃ y lÃ  trá»ng tÃ¢m Ä‘á»ƒ cÃ¡c service khÃ¡c tÃ¡i sá»­ dá»¥ng sáº¡ch sáº½.
 
 ## 6.1. Base metadata chung
 
-Mọi request/event gửi sang `notification-service` nên có chung các field:
+Má»i request/event gá»­i sang `notification-service` nÃªn cÃ³ chung cÃ¡c field:
 
 - `eventId`
 - `requestId`
@@ -212,22 +212,22 @@ Mọi request/event gửi sang `notification-service` nên có chung các field:
 - `requestedBy`
 - `idempotencyKey`
 
-Ý nghĩa:
+Ã nghÄ©a:
 
-- `eventId`: id của event phát ra
-- `requestId`: id theo request/transaction của caller
-- `traceId`: theo dõi xuyên service
-- `sourceService`: service nào gọi
-- `sourceModule`: module nghiệp vụ nào gọi
-- `sourceAction`: hành động nào gây ra notification
+- `eventId`: id cá»§a event phÃ¡t ra
+- `requestId`: id theo request/transaction cá»§a caller
+- `traceId`: theo dÃµi xuyÃªn service
+- `sourceService`: service nÃ o gá»i
+- `sourceModule`: module nghiá»‡p vá»¥ nÃ o gá»i
+- `sourceAction`: hÃ nh Ä‘á»™ng nÃ o gÃ¢y ra notification
 - `schemaVersion`: version contract
-- `idempotencyKey`: chống tạo trùng khi retry
+- `idempotencyKey`: chá»‘ng táº¡o trÃ¹ng khi retry
 
-## 6.2. NotificationTarget dùng chung
+## 6.2. NotificationTarget dÃ¹ng chung
 
-Thay vì mỗi event tự nhét `userId`, `roles`, `all`, `segment` theo kiểu khác nhau, nên có target model chuẩn.
+Thay vÃ¬ má»—i event tá»± nhÃ©t `userId`, `roles`, `all`, `segment` theo kiá»ƒu khÃ¡c nhau, nÃªn cÃ³ target model chuáº©n.
 
-Ví dụ:
+VÃ­ dá»¥:
 
 ```json
 {
@@ -236,7 +236,7 @@ Ví dụ:
 }
 ```
 
-hoặc:
+hoáº·c:
 
 ```json
 {
@@ -245,14 +245,14 @@ hoặc:
 }
 ```
 
-Nên định nghĩa class chung:
+NÃªn Ä‘á»‹nh nghÄ©a class chung:
 
 - `NotificationTarget`
 - `NotificationTargetType`
 
-## 6.3. NotificationContent dùng chung
+## 6.3. NotificationContent dÃ¹ng chung
 
-Phải có object nội dung thống nhất:
+Pháº£i cÃ³ object ná»™i dung thá»‘ng nháº¥t:
 
 - `title`
 - `body`
@@ -263,11 +263,11 @@ Phải có object nội dung thống nhất:
 - `reward`
 - `localePolicy`
 
-## 6.4. NotificationAction dùng chung
+## 6.4. NotificationAction dÃ¹ng chung
 
-Không để `actionTarget` rời rạc.
+KhÃ´ng Ä‘á»ƒ `actionTarget` rá»i ráº¡c.
 
-Nên chuẩn hóa:
+NÃªn chuáº©n hÃ³a:
 
 - `actionType`
 - `screen`
@@ -275,7 +275,7 @@ Nên chuẩn hóa:
 - `deeplink`
 - `payload`
 
-Ví dụ:
+VÃ­ dá»¥:
 
 - `OPEN_SCREEN`
 - `OPEN_URL`
@@ -283,27 +283,27 @@ Ví dụ:
 - `CLAIM_REWARD`
 - `NONE`
 
-## 6.5. NotificationChannel dùng chung
+## 6.5. NotificationChannel dÃ¹ng chung
 
-Phải có enum dùng chung:
+Pháº£i cÃ³ enum dÃ¹ng chung:
 
 - `INBOX`
 - `REALTIME`
 - `EMAIL`
 
-Một request có thể đi nhiều channel cùng lúc.
+Má»™t request cÃ³ thá»ƒ Ä‘i nhiá»u channel cÃ¹ng lÃºc.
 
-Ví dụ:
+VÃ­ dá»¥:
 
 - inbox + realtime
 - email only
 - inbox + realtime + email
 
-## 6.6. NotificationRequest chuẩn
+## 6.6. NotificationRequest chuáº©n
 
-Đây nên là contract trung tâm dùng chung cho các service gọi vào.
+ÄÃ¢y nÃªn lÃ  contract trung tÃ¢m dÃ¹ng chung cho cÃ¡c service gá»i vÃ o.
 
-Ví dụ tối thiểu:
+VÃ­ dá»¥ tá»‘i thiá»ƒu:
 
 ```json
 {
@@ -323,8 +323,8 @@ Ví dụ tối thiểu:
   "content": {
     "type": "SYSTEM",
     "priority": 1,
-    "title": "Chào mừng bạn",
-    "body": "Tài khoản của bạn đã được tạo thành công"
+    "title": "ChÃ o má»«ng báº¡n",
+    "body": "TÃ i khoáº£n cá»§a báº¡n Ä‘Ã£ Ä‘Æ°á»£c táº¡o thÃ nh cÃ´ng"
   },
   "action": {
     "actionType": "OPEN_SCREEN",
@@ -336,16 +336,16 @@ Ví dụ tối thiểu:
 }
 ```
 
-Khuyến nghị:
+Khuyáº¿n nghá»‹:
 
-- tạo class `NotificationRequestEvent` trong `notification-contract`
-- đây là payload chuẩn nhất cho các service khác dùng
+- táº¡o class `NotificationRequestEvent` trong `notification-contract`
+- Ä‘Ã¢y lÃ  payload chuáº©n nháº¥t cho cÃ¡c service khÃ¡c dÃ¹ng
 
 ---
 
-## 7. Những contract nào nên có ngay trong `notification-contract`
+## 7. Nhá»¯ng contract nÃ o nÃªn cÃ³ ngay trong `notification-contract`
 
-Để dùng chung và clean code, nên chốt bộ contract sau:
+Äá»ƒ dÃ¹ng chung vÃ  clean code, nÃªn chá»‘t bá»™ contract sau:
 
 - `NotificationRequestEvent`
 - `NotificationTarget`
@@ -359,55 +359,55 @@ Khuyến nghị:
 - `DeliveryStatus`
 - `NotificationSourceMetadata`
 
-Ngoài ra nên có interface hoặc abstract base:
+NgoÃ i ra nÃªn cÃ³ interface hoáº·c abstract base:
 
 - `BaseNotificationEvent`
 
-để các event khác như email/realtime kế thừa pattern field thống nhất.
+Ä‘á»ƒ cÃ¡c event khÃ¡c nhÆ° email/realtime káº¿ thá»«a pattern field thá»‘ng nháº¥t.
 
 ---
 
-## 8. Quan hệ giữa contract tổng và các event delivery hiện có
+## 8. Quan há»‡ giá»¯a contract tá»•ng vÃ  cÃ¡c event delivery hiá»‡n cÃ³
 
-Repo hiện tại đã có:
+Repo hiá»‡n táº¡i Ä‘Ã£ cÃ³:
 
 - `EmailNotificationEvent`
 - `WebSocketNotificationEvent`
 
-Các event này không nên là contract đầu vào chính cho các service khác nữa.
+CÃ¡c event nÃ y khÃ´ng nÃªn lÃ  contract Ä‘áº§u vÃ o chÃ­nh cho cÃ¡c service khÃ¡c ná»¯a.
 
-Chúng nên trở thành:
+ChÃºng nÃªn trá»Ÿ thÃ nh:
 
-- contract nội bộ của `notification-service`
-- hoặc contract delivery downstream
+- contract ná»™i bá»™ cá»§a `notification-service`
+- hoáº·c contract delivery downstream
 
-Hướng chuẩn:
+HÆ°á»›ng chuáº©n:
 
-1. service khác gửi `NotificationRequestEvent`
-2. `notification-service` xử lý nghiệp vụ
-3. nếu cần email thì chuyển thành `EmailNotificationEvent`
-5. nếu cần realtime thì chuyển thành `WebSocketNotificationEvent`
+1. service khÃ¡c gá»­i `NotificationRequestEvent`
+2. `notification-service` xá»­ lÃ½ nghiá»‡p vá»¥
+3. náº¿u cáº§n email thÃ¬ chuyá»ƒn thÃ nh `EmailNotificationEvent`
+5. náº¿u cáº§n realtime thÃ¬ chuyá»ƒn thÃ nh `WebSocketNotificationEvent`
 
-Như vậy boundary sẽ sạch hơn:
+NhÆ° váº­y boundary sáº½ sáº¡ch hÆ¡n:
 
-- service khác không cần biết email template cụ thể
-- service khác không cần biết websocket payload cụ thể
-- mọi logic mapping nằm tập trung trong `notification-service`
+- service khÃ¡c khÃ´ng cáº§n biáº¿t email template cá»¥ thá»ƒ
+- service khÃ¡c khÃ´ng cáº§n biáº¿t websocket payload cá»¥ thá»ƒ
+- má»i logic mapping náº±m táº­p trung trong `notification-service`
 
-Đây là điểm rất quan trọng nếu muốn tránh sửa đi sửa lại sau này.
+ÄÃ¢y lÃ  Ä‘iá»ƒm ráº¥t quan trá»ng náº¿u muá»‘n trÃ¡nh sá»­a Ä‘i sá»­a láº¡i sau nÃ y.
 
 ---
 
-## 9. Thiết kế dữ liệu chuẩn cho production
+## 9. Thiáº¿t káº¿ dá»¯ liá»‡u chuáº©n cho production
 
-Schema đề xuất: `INF_NOTIFICATION`
+Schema Ä‘á» xuáº¥t: `INF_NOTI`
 
 ## 9.1. `notification_request`
 
-Lưu request gốc từ service khác.
+LÆ°u request gá»‘c tá»« service khÃ¡c.
 
 ```sql
-CREATE TABLE INF_NOTIFICATION.notification_request (
+CREATE TABLE INF_NOTI.notification_request (
     id BIGSERIAL PRIMARY KEY,
     event_id VARCHAR(100) NOT NULL,
     request_id VARCHAR(100),
@@ -426,18 +426,18 @@ CREATE TABLE INF_NOTIFICATION.notification_request (
 );
 ```
 
-Lợi ích:
+Lá»£i Ã­ch:
 
-- audit request đầu vào
-- chống duplicate từ caller
-- truy vết đầy đủ theo service nguồn
+- audit request Ä‘áº§u vÃ o
+- chá»‘ng duplicate tá»« caller
+- truy váº¿t Ä‘áº§y Ä‘á»§ theo service nguá»“n
 
 ## 9.2. `notification_template`
 
-Lưu thông báo gốc đã chuẩn hóa.
+LÆ°u thÃ´ng bÃ¡o gá»‘c Ä‘Ã£ chuáº©n hÃ³a.
 
 ```sql
-CREATE TABLE INF_NOTIFICATION.notification_template (
+CREATE TABLE INF_NOTI.notification_template (
     id BIGSERIAL PRIMARY KEY,
     request_id BIGINT NOT NULL,
     code VARCHAR(100),
@@ -456,11 +456,11 @@ CREATE TABLE INF_NOTIFICATION.notification_template (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_notification_template_request
         FOREIGN KEY (request_id)
-        REFERENCES INF_NOTIFICATION.notification_request(id)
+        REFERENCES INF_NOTI.notification_request(id)
 );
 ```
 
-`channel_payload` dùng để lưu cấu hình channel đã chuẩn hóa:
+`channel_payload` dÃ¹ng Ä‘á»ƒ lÆ°u cáº¥u hÃ¬nh channel Ä‘Ã£ chuáº©n hÃ³a:
 
 - inbox
 - realtime
@@ -469,7 +469,7 @@ CREATE TABLE INF_NOTIFICATION.notification_template (
 ## 9.3. `notification_target_rule`
 
 ```sql
-CREATE TABLE INF_NOTIFICATION.notification_target_rule (
+CREATE TABLE INF_NOTI.notification_target_rule (
     id BIGSERIAL PRIMARY KEY,
     notification_id BIGINT NOT NULL,
     rule_type VARCHAR(30) NOT NULL,
@@ -477,7 +477,7 @@ CREATE TABLE INF_NOTIFICATION.notification_target_rule (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_target_rule_template
         FOREIGN KEY (notification_id)
-        REFERENCES INF_NOTIFICATION.notification_template(id)
+        REFERENCES INF_NOTI.notification_template(id)
         ON DELETE CASCADE
 );
 ```
@@ -485,7 +485,7 @@ CREATE TABLE INF_NOTIFICATION.notification_target_rule (
 ## 9.4. `notification_delivery_job`
 
 ```sql
-CREATE TABLE INF_NOTIFICATION.notification_delivery_job (
+CREATE TABLE INF_NOTI.notification_delivery_job (
     id BIGSERIAL PRIMARY KEY,
     notification_id BIGINT NOT NULL,
     job_type VARCHAR(30) NOT NULL,
@@ -503,7 +503,7 @@ CREATE TABLE INF_NOTIFICATION.notification_delivery_job (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_delivery_job_template
         FOREIGN KEY (notification_id)
-        REFERENCES INF_NOTIFICATION.notification_template(id)
+        REFERENCES INF_NOTI.notification_template(id)
         ON DELETE CASCADE
 );
 ```
@@ -511,7 +511,7 @@ CREATE TABLE INF_NOTIFICATION.notification_delivery_job (
 ## 9.5. `notification_delivery_batch`
 
 ```sql
-CREATE TABLE INF_NOTIFICATION.notification_delivery_batch (
+CREATE TABLE INF_NOTI.notification_delivery_batch (
     id BIGSERIAL PRIMARY KEY,
     job_id BIGINT NOT NULL,
     batch_no INT NOT NULL,
@@ -529,7 +529,7 @@ CREATE TABLE INF_NOTIFICATION.notification_delivery_batch (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_delivery_batch_job
         FOREIGN KEY (job_id)
-        REFERENCES INF_NOTIFICATION.notification_delivery_job(id)
+        REFERENCES INF_NOTI.notification_delivery_job(id)
         ON DELETE CASCADE,
     CONSTRAINT uk_delivery_batch UNIQUE (job_id, batch_no)
 );
@@ -538,7 +538,7 @@ CREATE TABLE INF_NOTIFICATION.notification_delivery_batch (
 ## 9.6. `user_notification`
 
 ```sql
-CREATE TABLE INF_NOTIFICATION.user_notification (
+CREATE TABLE INF_NOTI.user_notification (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL,
     notification_id BIGINT NOT NULL,
@@ -561,15 +561,15 @@ CREATE TABLE INF_NOTIFICATION.user_notification (
 );
 
 CREATE INDEX idx_un_user_created
-    ON INF_NOTIFICATION.user_notification(user_id, created_at DESC);
+    ON INF_NOTI.user_notification(user_id, created_at DESC);
 CREATE INDEX idx_un_user_status
-    ON INF_NOTIFICATION.user_notification(user_id, status, is_deleted);
+    ON INF_NOTI.user_notification(user_id, status, is_deleted);
 ```
 
 ## 9.7. `user_notification_claim_log`
 
 ```sql
-CREATE TABLE INF_NOTIFICATION.user_notification_claim_log (
+CREATE TABLE INF_NOTI.user_notification_claim_log (
     id BIGSERIAL PRIMARY KEY,
     user_notification_id BIGINT NOT NULL,
     user_id BIGINT NOT NULL,
@@ -579,7 +579,7 @@ CREATE TABLE INF_NOTIFICATION.user_notification_claim_log (
     claimed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_claim_user_notification
         FOREIGN KEY (user_notification_id)
-        REFERENCES INF_NOTIFICATION.user_notification(id)
+        REFERENCES INF_NOTI.user_notification(id)
         ON DELETE CASCADE
 );
 ```
@@ -587,7 +587,7 @@ CREATE TABLE INF_NOTIFICATION.user_notification_claim_log (
 ## 9.8. `email_delivery_log`
 
 ```sql
-CREATE TABLE INF_NOTIFICATION.email_delivery_log (
+CREATE TABLE INF_NOTI.email_delivery_log (
     id BIGSERIAL PRIMARY KEY,
     event_id VARCHAR(100) NOT NULL,
     notification_id BIGINT NULL,
@@ -612,123 +612,123 @@ CREATE TABLE INF_NOTIFICATION.email_delivery_log (
 );
 ```
 
-## 10. Tại sao phải có `notification_request`
+## 10. Táº¡i sao pháº£i cÃ³ `notification_request`
 
-Đây là bảng rất quan trọng để hệ thống dùng chung cho nhiều service mà vẫn sạch.
+ÄÃ¢y lÃ  báº£ng ráº¥t quan trá»ng Ä‘á»ƒ há»‡ thá»‘ng dÃ¹ng chung cho nhiá»u service mÃ  váº«n sáº¡ch.
 
-Nếu không có bảng này:
+Náº¿u khÃ´ng cÃ³ báº£ng nÃ y:
 
-- khó audit service nào yêu cầu gì
-- khó xử lý idempotency từ caller
-- khó hỗ trợ retry an toàn
-- khó debug tích hợp xuyên service
+- khÃ³ audit service nÃ o yÃªu cáº§u gÃ¬
+- khÃ³ xá»­ lÃ½ idempotency tá»« caller
+- khÃ³ há»— trá»£ retry an toÃ n
+- khÃ³ debug tÃ­ch há»£p xuyÃªn service
 
-Vì `notification-service` là nền tảng dùng chung, bảng này nên được xem là bắt buộc.
+VÃ¬ `notification-service` lÃ  ná»n táº£ng dÃ¹ng chung, báº£ng nÃ y nÃªn Ä‘Æ°á»£c xem lÃ  báº¯t buá»™c.
 
 ---
 
-## 11. Quy trình xử lý chuẩn
+## 11. Quy trÃ¬nh xá»­ lÃ½ chuáº©n
 
 ## 11.1. Inbound flow
 
-1. service khác gọi REST hoặc publish `NotificationRequestEvent`
+1. service khÃ¡c gá»i REST hoáº·c publish `NotificationRequestEvent`
 2. `notification-service` validate contract
-3. kiểm tra `idempotencyKey`
+3. kiá»ƒm tra `idempotencyKey`
 4. insert `notification_request`
-5. chuẩn hóa thành `notification_template`
-6. tạo `notification_target_rule`
-7. tạo `notification_delivery_job`
-8. publish job vào Kafka
+5. chuáº©n hÃ³a thÃ nh `notification_template`
+6. táº¡o `notification_target_rule`
+7. táº¡o `notification_delivery_job`
+8. publish job vÃ o Kafka
 
 ## 11.2. Fanout flow
 
-1. worker đọc `notification.delivery.requested`
-2. đếm target
-3. chia thành `notification_delivery_batch`
-4. publish từng batch
+1. worker Ä‘á»c `notification.delivery.requested`
+2. Ä‘áº¿m target
+3. chia thÃ nh `notification_delivery_batch`
+4. publish tá»«ng batch
 5. batch worker query user theo cursor
 6. bulk insert `user_notification`
 7. update unread count cache
-8. push realtime nếu có channel `REALTIME`
+8. push realtime náº¿u cÃ³ channel `REALTIME`
 
 ## 11.3. External delivery flow
 
-1. domain layer xác định cần email
+1. domain layer xÃ¡c Ä‘á»‹nh cáº§n email
 2. map sang `EmailNotificationEvent`
-3. insert delivery log trạng thái `PENDING`
+3. insert delivery log tráº¡ng thÃ¡i `PENDING`
 4. publish topic email
-5. consumer gửi provider
+5. consumer gá»­i provider
 6. update log `SENT` / `FAILED`
-7. nếu có callback provider thì update `DELIVERED`
+7. náº¿u cÃ³ callback provider thÃ¬ update `DELIVERED`
 
 ---
 
-## 12. Tích hợp với các service khác như thế nào cho sạch nhất
+## 12. TÃ­ch há»£p vá»›i cÃ¡c service khÃ¡c nhÆ° tháº¿ nÃ o cho sáº¡ch nháº¥t
 
-Đây là phần cần làm đúng ngay từ đầu.
+ÄÃ¢y lÃ  pháº§n cáº§n lÃ m Ä‘Ãºng ngay tá»« Ä‘áº§u.
 
-## 12.1. Không cho service khác gọi Kafka topic nội bộ lung tung
+## 12.1. KhÃ´ng cho service khÃ¡c gá»i Kafka topic ná»™i bá»™ lung tung
 
-Service khác không nên biết:
+Service khÃ¡c khÃ´ng nÃªn biáº¿t:
 
 - `notification.delivery.batch.requested`
 - `notification.realtime.dispatch`
 - `notification.dead-letter`
 
-Các topic này là nội bộ của `notification-service`.
+CÃ¡c topic nÃ y lÃ  ná»™i bá»™ cá»§a `notification-service`.
 
-Service ngoài chỉ nên biết:
+Service ngoÃ i chá»‰ nÃªn biáº¿t:
 
-- REST public API của notification
-- hoặc topic contract public như `notification.request.v1`
+- REST public API cá»§a notification
+- hoáº·c topic contract public nhÆ° `notification.request.v1`
 
-## 12.2. Tạo một integration SDK nhẹ dùng chung
+## 12.2. Táº¡o má»™t integration SDK nháº¹ dÃ¹ng chung
 
-Nên dùng trực tiếp module `notification-contract`.
+NÃªn dÃ¹ng trá»±c tiáº¿p module `notification-contract`.
 
-Phần helper mức nhẹ trong module này cung cấp:
+Pháº§n helper má»©c nháº¹ trong module nÃ y cung cáº¥p:
 
 - request DTO
 - event DTO
 - helper builder
 - topic names public
-- validation cơ bản
+- validation cÆ¡ báº£n
 
-Ví dụ:
+VÃ­ dá»¥:
 
 - `NotificationRequestBuilder`
 - `NotificationTargetBuilder`
 - `NotificationChannelSet`
 
-Mục tiêu:
+Má»¥c tiÃªu:
 
-- giảm code lặp ở các service caller
-- giảm sai contract
-- clean code hơn
+- giáº£m code láº·p á»Ÿ cÃ¡c service caller
+- giáº£m sai contract
+- clean code hÆ¡n
 
-## 12.3. Chuẩn hóa topic public
+## 12.3. Chuáº©n hÃ³a topic public
 
-Nên chỉ public 1 hoặc 2 topic ở boundary:
+NÃªn chá»‰ public 1 hoáº·c 2 topic á»Ÿ boundary:
 
 - `notification.request.v1`
-- `notification.status.changed.v1` nếu cần callback trạng thái
+- `notification.status.changed.v1` náº¿u cáº§n callback tráº¡ng thÃ¡i
 
-Không public toàn bộ topic nội bộ.
+KhÃ´ng public toÃ n bá»™ topic ná»™i bá»™.
 
-## 12.4. Callback trạng thái nếu cần
+## 12.4. Callback tráº¡ng thÃ¡i náº¿u cáº§n
 
-Một số service có thể muốn biết kết quả notification.
+Má»™t sá»‘ service cÃ³ thá»ƒ muá»‘n biáº¿t káº¿t quáº£ notification.
 
-Ví dụ:
+VÃ­ dá»¥:
 
-- payment service muốn biết email invoice đã gửi chưa
-- game service muốn biết mail reward đã tạo inbox xong chưa
+- payment service muá»‘n biáº¿t email invoice Ä‘Ã£ gá»­i chÆ°a
+- game service muá»‘n biáº¿t mail reward Ä‘Ã£ táº¡o inbox xong chÆ°a
 
-Khi đó `notification-service` có thể phát event dùng chung:
+Khi Ä‘Ã³ `notification-service` cÃ³ thá»ƒ phÃ¡t event dÃ¹ng chung:
 
 - `notification.status.changed.v1`
 
-Payload gồm:
+Payload gá»“m:
 
 - `eventId`
 - `sourceService`
@@ -739,83 +739,83 @@ Payload gồm:
 - `errorCode`
 - `occurredAt`
 
-Không nên callback quá chi tiết ngay từ đầu. Chỉ publish trạng thái nghiệp vụ cần thiết.
+KhÃ´ng nÃªn callback quÃ¡ chi tiáº¿t ngay tá»« Ä‘áº§u. Chá»‰ publish tráº¡ng thÃ¡i nghiá»‡p vá»¥ cáº§n thiáº¿t.
 
 ---
 
-## 13. Chiến lược scale 1 triệu user
+## 13. Chiáº¿n lÆ°á»£c scale 1 triá»‡u user
 
-## 13.1. Không dùng offset lớn
+## 13.1. KhÃ´ng dÃ¹ng offset lá»›n
 
-Fanout phải dùng cursor:
+Fanout pháº£i dÃ¹ng cursor:
 
 - `WHERE id > :lastId ORDER BY id LIMIT :batchSize`
 
-## 13.2. Batch insert bằng JDBC/native
+## 13.2. Batch insert báº±ng JDBC/native
 
-Không save từng record qua JPA.
+KhÃ´ng save tá»«ng record qua JPA.
 
 ## 13.3. Partition `user_notification`
 
-Khuyến nghị:
+Khuyáº¿n nghá»‹:
 
-- partition theo tháng bằng `created_at`
+- partition theo thÃ¡ng báº±ng `created_at`
 
 ## 13.4. Read replica cho user source
 
-Nếu số campaign lớn:
+Náº¿u sá»‘ campaign lá»›n:
 
-- `notification-service` nên đọc user target từ read replica hoặc quyền read-only schema user
+- `notification-service` nÃªn Ä‘á»c user target tá»« read replica hoáº·c quyá»n read-only schema user
 
-Không nên gọi REST paging sang `user-service` để fanout lớn.
+KhÃ´ng nÃªn gá»i REST paging sang `user-service` Ä‘á»ƒ fanout lá»›n.
 
-## 13.5. Redis chỉ cache unread count
+## 13.5. Redis chá»‰ cache unread count
 
-Không dùng Redis làm inbox store.
+KhÃ´ng dÃ¹ng Redis lÃ m inbox store.
 
-## 13.6. Realtime chỉ là phụ trợ
+## 13.6. Realtime chá»‰ lÃ  phá»¥ trá»£
 
-Nếu realtime lỗi:
+Náº¿u realtime lá»—i:
 
-- inbox vẫn còn
-- user vẫn đọc lại được
+- inbox váº«n cÃ²n
+- user váº«n Ä‘á»c láº¡i Ä‘Æ°á»£c
 
 ---
 
-## 14. Idempotency chuẩn hệ thống
+## 14. Idempotency chuáº©n há»‡ thá»‘ng
 
-Vì nhiều service cùng gọi vào, phần này phải chốt rất kỹ.
+VÃ¬ nhiá»u service cÃ¹ng gá»i vÃ o, pháº§n nÃ y pháº£i chá»‘t ráº¥t ká»¹.
 
-## 14.1. Ở boundary request
+## 14.1. á»ž boundary request
 
-Mỗi request phải có `idempotencyKey`.
+Má»—i request pháº£i cÃ³ `idempotencyKey`.
 
-Ví dụ:
+VÃ­ dá»¥:
 
 - `user_registered:123`
 - `invoice_paid:INV-0001`
 - `reward_event:evt-2026-01:user-99`
 
-Nếu caller retry cùng key:
+Náº¿u caller retry cÃ¹ng key:
 
-- không tạo campaign mới
-- trả lại kết quả request cũ
+- khÃ´ng táº¡o campaign má»›i
+- tráº£ láº¡i káº¿t quáº£ request cÅ©
 
-## 14.2. Ở inbox delivery
+## 14.2. á»ž inbox delivery
 
-Chống trùng bằng:
+Chá»‘ng trÃ¹ng báº±ng:
 
 - unique `(user_id, notification_id)`
 
-## 14.3. Ở email delivery
+## 14.3. á»ž email delivery
 
-Chống trùng bằng:
+Chá»‘ng trÃ¹ng báº±ng:
 
 - unique `event_id` trong delivery log
 
-## 14.4. Ở reward claim
+## 14.4. á»ž reward claim
 
-Chống claim trùng bằng:
+Chá»‘ng claim trÃ¹ng báº±ng:
 
 - transaction
 - row lock
@@ -823,7 +823,7 @@ Chống claim trùng bằng:
 
 ---
 
-## 15. API public nên có
+## 15. API public nÃªn cÃ³
 
 ## 15.1. Admin / internal command API
 
@@ -836,18 +836,18 @@ Chống claim trùng bằng:
 
 ## 15.2. Service integration API
 
-Đây là API các service khác gọi vào trực tiếp nếu không dùng Kafka.
+ÄÃ¢y lÃ  API cÃ¡c service khÃ¡c gá»i vÃ o trá»±c tiáº¿p náº¿u khÃ´ng dÃ¹ng Kafka.
 
 - `POST /api/internal/notifications/requests`
 
-Request body là `NotificationRequestEvent`.
+Request body lÃ  `NotificationRequestEvent`.
 
-Response nên trả:
+Response nÃªn tráº£:
 
 - `requestId`
 - `eventId`
 - `status`
-- `notificationId` nếu đã tạo được
+- `notificationId` náº¿u Ä‘Ã£ táº¡o Ä‘Æ°á»£c
 
 ## 15.3. Client API
 
@@ -863,37 +863,37 @@ Response nên trả:
 - `GET /api/admin/email-deliveries`
 - `GET /api/admin/email-deliveries/{id}`
 - `POST /api/admin/email-deliveries/{id}/retry`
-## 16. Versioning và backward compatibility
+## 16. Versioning vÃ  backward compatibility
 
-Nếu muốn không phải sửa đi sửa lại, phải chốt nguyên tắc này ngay.
+Náº¿u muá»‘n khÃ´ng pháº£i sá»­a Ä‘i sá»­a láº¡i, pháº£i chá»‘t nguyÃªn táº¯c nÃ y ngay.
 
-Nguyên tắc:
+NguyÃªn táº¯c:
 
-- contract public phải versioned
-- field mới chỉ được thêm theo hướng backward compatible
-- không đổi nghĩa field cũ
-- không xóa field public đang dùng nếu chưa qua deprecation cycle
+- contract public pháº£i versioned
+- field má»›i chá»‰ Ä‘Æ°á»£c thÃªm theo hÆ°á»›ng backward compatible
+- khÃ´ng Ä‘á»•i nghÄ©a field cÅ©
+- khÃ´ng xÃ³a field public Ä‘ang dÃ¹ng náº¿u chÆ°a qua deprecation cycle
 
-Khuyến nghị:
+Khuyáº¿n nghá»‹:
 
-- mọi public event có `schemaVersion`
-- topic public có suffix version
+- má»i public event cÃ³ `schemaVersion`
+- topic public cÃ³ suffix version
 
-Ví dụ:
+VÃ­ dá»¥:
 
 - `notification.request.v1`
 - `notification.status.changed.v1`
 
 ---
 
-## 17. Observability bắt buộc phải có
+## 17. Observability báº¯t buá»™c pháº£i cÃ³
 
-Metric tối thiểu:
+Metric tá»‘i thiá»ƒu:
 
-- số request nhận vào theo `sourceService`
-- số request bị duplicate theo `idempotencyKey`
-- số campaign tạo mới
-- số batch đang `PENDING`, `PROCESSING`, `FAILED`
+- sá»‘ request nháº­n vÃ o theo `sourceService`
+- sá»‘ request bá»‹ duplicate theo `idempotencyKey`
+- sá»‘ campaign táº¡o má»›i
+- sá»‘ batch Ä‘ang `PENDING`, `PROCESSING`, `FAILED`
 - fanout throughput
 - inbox insert latency
 - unread cache hit rate
@@ -901,7 +901,7 @@ Metric tối thiểu:
 - realtime push success/failure rate
 - DLQ size
 
-Structured log phải có:
+Structured log pháº£i cÃ³:
 
 - `eventId`
 - `requestId`
@@ -915,91 +915,91 @@ Structured log phải có:
 
 ---
 
-## 18. Cấu trúc code đề xuất để clean nhất
+## 18. Cáº¥u trÃºc code Ä‘á» xuáº¥t Ä‘á»ƒ clean nháº¥t
 
 ```text
 notification
-└── src/main/java/com/infinite/notification
-    ├── api
-    │   ├── admin
-    │   ├── client
-    │   └── internal
-    ├── application
-    │   ├── command
-    │   ├── query
-    │   └── mapper
-    ├── domain
-    │   ├── model
-    │   ├── service
-    │   └── policy
-    ├── infrastructure
-    │   ├── persistence
-    │   ├── messaging
-    │   ├── redis
-    │   ├── email
-    │   └── websocket
-    ├── worker
-    ├── scheduler
-    └── config
+â””â”€â”€ src/main/java/com/infinite/notification
+    â”œâ”€â”€ api
+    â”‚   â”œâ”€â”€ admin
+    â”‚   â”œâ”€â”€ client
+    â”‚   â””â”€â”€ internal
+    â”œâ”€â”€ application
+    â”‚   â”œâ”€â”€ command
+    â”‚   â”œâ”€â”€ query
+    â”‚   â””â”€â”€ mapper
+    â”œâ”€â”€ domain
+    â”‚   â”œâ”€â”€ model
+    â”‚   â”œâ”€â”€ service
+    â”‚   â””â”€â”€ policy
+    â”œâ”€â”€ infrastructure
+    â”‚   â”œâ”€â”€ persistence
+    â”‚   â”œâ”€â”€ messaging
+    â”‚   â”œâ”€â”€ redis
+    â”‚   â”œâ”€â”€ email
+    â”‚   â””â”€â”€ websocket
+    â”œâ”€â”€ worker
+    â”œâ”€â”€ scheduler
+    â””â”€â”€ config
 ```
 
-Khuyến nghị rõ:
+Khuyáº¿n nghá»‹ rÃµ:
 
-- `api`: nhận request/response
+- `api`: nháº­n request/response
 - `application`: orchestration use case
 - `domain`: business rule
 - `infrastructure`: JPA/Kafka/Redis/provider
 
-Không nên nhét hết vào `service/impl` như kiểu CRUD thường thấy, vì sau này service này sẽ lớn.
+KhÃ´ng nÃªn nhÃ©t háº¿t vÃ o `service/impl` nhÆ° kiá»ƒu CRUD thÆ°á»ng tháº¥y, vÃ¬ sau nÃ y service nÃ y sáº½ lá»›n.
 
 ---
 
-## 19. Những thứ nên đưa vào `notification-contract`
+## 19. Nhá»¯ng thá»© nÃªn Ä‘Æ°a vÃ o `notification-contract`
 
-Chốt danh sách nên chuẩn hóa ngay trong `notification-contract`:
+Chá»‘t danh sÃ¡ch nÃªn chuáº©n hÃ³a ngay trong `notification-contract`:
 
 - DTO request/event public
 - enum channel/type/status/priority
 - base metadata model
 - topic name public
 - builder/helper cho request
-- constants về schema version
+- constants vá» schema version
 
-Không nên đưa vào `notification-contract`:
+KhÃ´ng nÃªn Ä‘Æ°a vÃ o `notification-contract`:
 
-- entity JPA của `notification-service`
+- entity JPA cá»§a `notification-service`
 - repository
 - logic fanout
 - logic provider email
 
-Nguyên tắc:
+NguyÃªn táº¯c:
 
-- `notification-contract` chỉ chứa contract và helper tích hợp mức nhẹ
-- không biến module này thành nơi nhét logic nghiệp vụ notification
+- `notification-contract` chá»‰ chá»©a contract vÃ  helper tÃ­ch há»£p má»©c nháº¹
+- khÃ´ng biáº¿n module nÃ y thÃ nh nÆ¡i nhÃ©t logic nghiá»‡p vá»¥ notification
 
 ---
 
-## 20. Cách tách module chốt cuối cùng
+## 20. CÃ¡ch tÃ¡ch module chá»‘t cuá»‘i cÃ¹ng
 
-Quyết định cuối cùng cho repo này:
+Quyáº¿t Ä‘á»‹nh cuá»‘i cÃ¹ng cho repo nÃ y:
 
-- chỉ tách đúng `1` module dependency dùng chung: `notification-contract`
-- `notification-service` vẫn giữ là `1` module triển khai duy nhất
-- chưa tách `email`, `realtime`, `inbox`, `admin` thành các Maven module riêng trong giai đoạn này
+- chá»‰ tÃ¡ch Ä‘Ãºng `1` module dependency dÃ¹ng chung: `notification-contract`
+- `notification-service` váº«n giá»¯ lÃ  `1` module triá»ƒn khai duy nháº¥t
+- chÆ°a tÃ¡ch `email`, `realtime`, `inbox`, `admin` thÃ nh cÃ¡c Maven module riÃªng trong giai Ä‘oáº¡n nÃ y
 
-Đây là phương án cân bằng nhất giữa:
+ÄÃ¢y lÃ  phÆ°Æ¡ng Ã¡n cÃ¢n báº±ng nháº¥t giá»¯a:
 
-- sạch kiến trúc
-- dễ tìm kiếm
-- dễ tích hợp
-- không over-engineer
-- không làm build/dependency phức tạp quá sớm
+- sáº¡ch kiáº¿n trÃºc
+- dá»… tÃ¬m kiáº¿m
+- dá»… tÃ­ch há»£p
+- khÃ´ng over-engineer
+- khÃ´ng lÃ m build/dependency phá»©c táº¡p quÃ¡ sá»›m
 
 ## 20.1. Module `notification-contract`
 
-Đây là module dependency duy nhất mà các service khác cần dùng.
+ÄÃ¢y lÃ  module dependency duy nháº¥t mÃ  cÃ¡c service khÃ¡c cáº§n dÃ¹ng.
 
-Module này chứa:
+Module nÃ y chá»©a:
 
 - `NotificationRequestEvent`
 - `NotificationTarget`
@@ -1014,32 +1014,32 @@ Module này chứa:
 - `BaseNotificationEvent`
 - public topic names
 - schema version constants
-- builder/helper mức nhẹ
-- client helper mức nhẹ nếu cần
+- builder/helper má»©c nháº¹
+- client helper má»©c nháº¹ náº¿u cáº§n
 
-Phần "client helper mức nhẹ" được phép gộp luôn vào `notification-contract`, ví dụ:
+Pháº§n "client helper má»©c nháº¹" Ä‘Æ°á»£c phÃ©p gá»™p luÃ´n vÃ o `notification-contract`, vÃ­ dá»¥:
 
 - `NotificationRequestBuilder`
 - `NotificationTopicNames`
 - `NotificationPublisher` interface
 
-Nhưng chỉ dừng ở mức mỏng:
+NhÆ°ng chá»‰ dá»«ng á»Ÿ má»©c má»ng:
 
 - helper build request
 - interface publish/call
-- constants và validation nhẹ
+- constants vÃ  validation nháº¹
 
-Không đưa vào đây:
+KhÃ´ng Ä‘Æ°a vÃ o Ä‘Ã¢y:
 
-- Kafka implementation nặng
-- REST implementation nặng
-- retry policy phức tạp
+- Kafka implementation náº·ng
+- REST implementation náº·ng
+- retry policy phá»©c táº¡p
 - fallback logic
 - business logic notification
 
-## 20.2. Những gì để lại trong `notification-service`
+## 20.2. Nhá»¯ng gÃ¬ Ä‘á»ƒ láº¡i trong `notification-service`
 
-Toàn bộ phần nghiệp vụ thật phải ở lại trong `notification-service`:
+ToÃ n bá»™ pháº§n nghiá»‡p vá»¥ tháº­t pháº£i á»Ÿ láº¡i trong `notification-service`:
 
 - entity JPA
 - repository
@@ -1050,77 +1050,77 @@ Toàn bộ phần nghiệp vụ thật phải ở lại trong `notification-serv
 - inbox query logic
 - unread count logic
 - email delivery log persistence
-- mapping từ request contract sang delivery command
+- mapping tá»« request contract sang delivery command
 - realtime dispatch
 - admin API
 - client API
 - internal API
 
-Lý do:
+LÃ½ do:
 
-- đây là lõi domain của notification
-- tách ra sớm thành nhiều Maven module sẽ làm boundary rối hơn lợi ích nhận được
+- Ä‘Ã¢y lÃ  lÃµi domain cá»§a notification
+- tÃ¡ch ra sá»›m thÃ nh nhiá»u Maven module sáº½ lÃ m boundary rá»‘i hÆ¡n lá»£i Ã­ch nháº­n Ä‘Æ°á»£c
 
-## 20.3. Có nên tách email thành module riêng không
+## 20.3. CÃ³ nÃªn tÃ¡ch email thÃ nh module riÃªng khÃ´ng
 
-Hiện tại: `không nên`.
+Hiá»‡n táº¡i: `khÃ´ng nÃªn`.
 
-Nên làm:
+NÃªn lÃ m:
 
-- giữ email trong `notification-service`
-- tách package rõ trong service
+- giá»¯ email trong `notification-service`
+- tÃ¡ch package rÃµ trong service
 
-Ví dụ:
+VÃ­ dá»¥:
 
 - `infrastructure.email`
 - `application.command.email`
 - `domain.delivery`
 
-Chỉ nên tách email thành Maven module riêng sau này nếu có đủ dấu hiệu:
+Chá»‰ nÃªn tÃ¡ch email thÃ nh Maven module riÃªng sau nÃ y náº¿u cÃ³ Ä‘á»§ dáº¥u hiá»‡u:
 
-- nhiều provider
-- logic template/rendering rất lớn
-- cần scale/deploy độc lập
-- team phụ trách riêng
+- nhiá»u provider
+- logic template/rendering ráº¥t lá»›n
+- cáº§n scale/deploy Ä‘á»™c láº­p
+- team phá»¥ trÃ¡ch riÃªng
 
-Ở giai đoạn hiện tại, tách package là đủ tốt và sạch hơn nhiều so với tách module.
+á»ž giai Ä‘oáº¡n hiá»‡n táº¡i, tÃ¡ch package lÃ  Ä‘á»§ tá»‘t vÃ  sáº¡ch hÆ¡n nhiá»u so vá»›i tÃ¡ch module.
 
-## 20.4. Cấu trúc module thực tế nên dùng
+## 20.4. Cáº¥u trÃºc module thá»±c táº¿ nÃªn dÃ¹ng
 
-Nên chốt như sau:
+NÃªn chá»‘t nhÆ° sau:
 
 - `common`
-  - giữ utility/global components chung toàn hệ thống
+  - giá»¯ utility/global components chung toÃ n há»‡ thá»‘ng
 - `notification-contract`
-  - module dependency dùng chung cho tất cả service cần tích hợp notification
+  - module dependency dÃ¹ng chung cho táº¥t cáº£ service cáº§n tÃ­ch há»£p notification
 - `notification`
-  - service triển khai toàn bộ nghiệp vụ notification
+  - service triá»ƒn khai toÃ n bá»™ nghiá»‡p vá»¥ notification
 
-Tức là:
+Tá»©c lÃ :
 
-- không tiếp tục nhét contract notification vào `common`
-- không tạo thêm `notification-client` thành module riêng
-- không tách `notification-email` thành module riêng ở thời điểm này
+- khÃ´ng tiáº¿p tá»¥c nhÃ©t contract notification vÃ o `common`
+- khÃ´ng táº¡o thÃªm `notification-client` thÃ nh module riÃªng
+- khÃ´ng tÃ¡ch `notification-email` thÃ nh module riÃªng á»Ÿ thá»i Ä‘iá»ƒm nÃ y
 
-Đây là cấu trúc ít rủi ro nhất và dễ giữ ổn định lâu dài nhất.
+ÄÃ¢y lÃ  cáº¥u trÃºc Ã­t rá»§i ro nháº¥t vÃ  dá»… giá»¯ á»•n Ä‘á»‹nh lÃ¢u dÃ i nháº¥t.
 
 ---
 
-## 21. Những gì cần sửa trong repo để đúng hướng này
+## 21. Nhá»¯ng gÃ¬ cáº§n sá»­a trong repo Ä‘á»ƒ Ä‘Ãºng hÆ°á»›ng nÃ y
 
 ### 21.1. Trong `common`
 
-Cần giữ `common` gọn lại.
+Cáº§n giá»¯ `common` gá»n láº¡i.
 
-Không nên tiếp tục đưa thêm contract notification mới vào `common`.
+KhÃ´ng nÃªn tiáº¿p tá»¥c Ä‘Æ°a thÃªm contract notification má»›i vÃ o `common`.
 
-Nếu hiện tại đang có DTO/event notification trong `common`, hướng đúng là chuyển dần chúng sang `notification-contract`.
+Náº¿u hiá»‡n táº¡i Ä‘ang cÃ³ DTO/event notification trong `common`, hÆ°á»›ng Ä‘Ãºng lÃ  chuyá»ƒn dáº§n chÃºng sang `notification-contract`.
 
-Nên xem `EmailNotificationEvent` và `WebSocketNotificationEvent` là downstream/internal contracts, không phải request contract public chính nữa.
+NÃªn xem `EmailNotificationEvent` vÃ  `WebSocketNotificationEvent` lÃ  downstream/internal contracts, khÃ´ng pháº£i request contract public chÃ­nh ná»¯a.
 
 ### 21.1.a. Trong `notification-contract`
 
-Cần bổ sung:
+Cáº§n bá»• sung:
 
 - `NotificationRequestEvent`
 - `NotificationTarget`
@@ -1129,84 +1129,85 @@ Cần bổ sung:
 - `NotificationChannel`
 - `DeliveryStatus`
 - `BaseNotificationEvent`
-- builder/helper mức nhẹ cho caller
+- builder/helper má»©c nháº¹ cho caller
 - public topic names
 - schema version constants
 
 ### 21.2. Trong `notification`
 
-Cần bổ sung:
+Cáº§n bá»• sung:
 
 - JPA + PostgreSQL
-- bảng request/template/job/batch/inbox/log
+- báº£ng request/template/job/batch/inbox/log
 - internal REST API
 - admin API
 - client API
 - fanout worker
 - email delivery log service
-- status callback publisher nếu cần
-- tách package nội bộ rõ ràng theo `api / application / domain / infrastructure`
+- status callback publisher náº¿u cáº§n
+- tÃ¡ch package ná»™i bá»™ rÃµ rÃ ng theo `api / application / domain / infrastructure`
 
-### 21.3. Trong các service caller
+### 21.3. Trong cÃ¡c service caller
 
-Cần thay đổi dần:
+Cáº§n thay Ä‘á»•i dáº§n:
 
-- không publish trực tiếp `WebSocketNotificationEvent` từ business service nữa
-- không business service nào gọi provider email trực tiếp
-- dùng `NotificationRequestEvent` hoặc internal notification API
+- khÃ´ng publish trá»±c tiáº¿p `WebSocketNotificationEvent` tá»« business service ná»¯a
+- khÃ´ng business service nÃ o gá»i provider email trá»±c tiáº¿p
+- dÃ¹ng `NotificationRequestEvent` hoáº·c internal notification API
 
 ---
 
-## 22. Lộ trình triển khai đúng để không phải làm lại
+## 22. Lá»™ trÃ¬nh triá»ƒn khai Ä‘Ãºng Ä‘á»ƒ khÃ´ng pháº£i lÃ m láº¡i
 
 ### Phase 1
 
-Chuẩn hóa contract.
+Chuáº©n hÃ³a contract.
 
-- bổ sung DTO/event chung trong `notification-contract`
-- chốt topic public
-- chốt REST internal API
+- bá»• sung DTO/event chung trong `notification-contract`
+- chá»‘t topic public
+- chá»‘t REST internal API
 
 ### Phase 2
 
-Xây lõi `notification-service`.
+XÃ¢y lÃµi `notification-service`.
 
-- thêm persistence
-- thêm request/template/job/batch/inbox
-- thêm fanout worker
+- thÃªm persistence
+- thÃªm request/template/job/batch/inbox
+- thÃªm fanout worker
 
 ### Phase 3
 
-Chuẩn hóa external delivery.
+Chuáº©n hÃ³a external delivery.
 
 - email delivery log
 - retry / DLQ
-- callback trạng thái nếu cần
+- callback tráº¡ng thÃ¡i náº¿u cáº§n
 
 ### Phase 4
 
-Tối ưu quy mô lớn.
+Tá»‘i Æ°u quy mÃ´ lá»›n.
 
 - partition
 - read replica
 - tuning Kafka
 - tuning retention
-- metrics/dashboard đầy đủ
+- metrics/dashboard Ä‘áº§y Ä‘á»§
 
 ---
 
-## 23. Kết luận cuối cùng
+## 23. Káº¿t luáº­n cuá»‘i cÃ¹ng
 
-Nếu mục tiêu là “làm một lần cho đúng nền, về sau cứ tích hợp mà dùng”, thì bản thiết kế chuẩn nhất cho dự án này là:
+Náº¿u má»¥c tiÃªu lÃ  â€œlÃ m má»™t láº§n cho Ä‘Ãºng ná»n, vá» sau cá»© tÃ­ch há»£p mÃ  dÃ¹ngâ€, thÃ¬ báº£n thiáº¿t káº¿ chuáº©n nháº¥t cho dá»± Ã¡n nÃ y lÃ :
 
-- `notification-service` là entrypoint duy nhất cho thông báo
-- service khác chỉ giao tiếp qua contract public chuẩn
-- contract public được đặt ở `notification-contract` và có version
-- `NotificationRequestEvent` là request model trung tâm
-- email/realtime event chỉ là delivery contracts phía trong
-- toàn bộ request đều có idempotency, source metadata, trace metadata
-- fanout dùng job + batch + cursor + bulk insert
-- mọi delivery đều có log riêng để audit và retry
-- code tổ chức theo hướng application/domain/infrastructure, không làm kiểu service CRUD phình to
+- `notification-service` lÃ  entrypoint duy nháº¥t cho thÃ´ng bÃ¡o
+- service khÃ¡c chá»‰ giao tiáº¿p qua contract public chuáº©n
+- contract public Ä‘Æ°á»£c Ä‘áº·t á»Ÿ `notification-contract` vÃ  cÃ³ version
+- `NotificationRequestEvent` lÃ  request model trung tÃ¢m
+- email/realtime event chá»‰ lÃ  delivery contracts phÃ­a trong
+- toÃ n bá»™ request Ä‘á»u cÃ³ idempotency, source metadata, trace metadata
+- fanout dÃ¹ng job + batch + cursor + bulk insert
+- má»i delivery Ä‘á»u cÃ³ log riÃªng Ä‘á»ƒ audit vÃ  retry
+- code tá»• chá»©c theo hÆ°á»›ng application/domain/infrastructure, khÃ´ng lÃ m kiá»ƒu service CRUD phÃ¬nh to
 
-Đây là hướng ít rủi ro nhất, dễ scale nhất, và sạch nhất để giữ ổn định lâu dài.
+ÄÃ¢y lÃ  hÆ°á»›ng Ã­t rá»§i ro nháº¥t, dá»… scale nháº¥t, vÃ  sáº¡ch nháº¥t Ä‘á»ƒ giá»¯ á»•n Ä‘á»‹nh lÃ¢u dÃ i.
+

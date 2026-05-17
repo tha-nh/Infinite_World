@@ -2,6 +2,8 @@ package com.infinite.notification.contract.dto;
 
 import com.infinite.notification.contract.enumtype.NotificationPriority;
 import com.infinite.notification.contract.enumtype.NotificationType;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -21,6 +23,7 @@ public class NotificationContent {
     /**
      * Notification type
      */
+    @NotNull(message = "content.type is required")
     private NotificationType type;
     
     /**
@@ -32,11 +35,13 @@ public class NotificationContent {
     /**
      * Notification title
      */
+    @NotBlank(message = "content.title is required")
     private String title;
     
     /**
      * Notification body/message
      */
+    @NotBlank(message = "content.body is required")
     private String body;
     
     /**

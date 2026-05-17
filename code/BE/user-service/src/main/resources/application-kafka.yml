@@ -15,5 +15,6 @@ spring:
 # Notification topics
 notification:
   topics:
+    request: ${TOPIC_NOTIFICATION_REQUEST:notification.request.v1}
     email: ${TOPIC_EMAIL:notification.email}
     websocket: ${TOPIC_WEBSOCKET:notification.websocket}

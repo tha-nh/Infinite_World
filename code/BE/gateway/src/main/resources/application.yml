@@ -96,3 +96,43 @@ gateway:
         - Method=GET,POST,PUT,DELETE,OPTIONS
       filters:
         - Authorization=authn
+
+    - id: notification-client
+      uri: ${NOTIFICATION_SERVICE}
+      predicates:
+        - Path=[
+          "/api/notifications/**"
+          ]
+        - Method=GET,POST,PUT,DELETE,OPTIONS
+      filters:
+        - Authorization=authn
+
+    - id: notification-admin
+      uri: ${NOTIFICATION_SERVICE}
+      predicates:
+        - Path=[
+          "/api/admin/notifications/**"
+          ]
+        - Method=GET,POST,PUT,DELETE,OPTIONS
+      filters:
+        - Authorization=authn,roles:ADMIN
+
+    - id: notification-email-admin
+      uri: ${NOTIFICATION_SERVICE}
+      predicates:
+        - Path=[
+          "/api/admin/email-deliveries/**"
+          ]
+        - Method=GET,POST,PUT,DELETE,OPTIONS
+      filters:
+        - Authorization=authn,roles:ADMIN
+
+    - id: notification-internal
+      uri: ${NOTIFICATION_SERVICE}
+      predicates:
+        - Path=[
+          "/api/internal/notifications/**"
+          ]
+        - Method=GET,POST,PUT,DELETE,OPTIONS
+      filters:
+        - Authorization=authn,roles:ADMIN
