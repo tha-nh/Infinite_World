@@ -1,0 +1,516 @@
+{
+  "SUCCESS": "Success",
+  "BAD_REQUEST": "Bad request",
+  "PARAM_NULL": "Missing required parameter",
+  "INVALID_KEY": "Invalid key",
+  "UNAUTHORIZED": "Unauthorized",
+  "NOT_PERMIT": "Permission denied",
+  "DATA_NOT_EXISTED": "Data not found",
+  "DATA_EXISTED": "Data already exists",
+  "DUPLICATE": "Duplicate data",
+  "FILE_NOT_EXISTED": "File not found",
+  "FILE_NOT_READ": "Cannot read file",
+  "FILE_NOT_DOWNLOAD": "Cannot download file",
+  "FILE_NOT_DELETED": "Cannot delete file",
+  "INTERNAL_ERROR": "Internal server error",
+  "email": {
+    "otp": {
+      "subject": {
+        "forgot_password": "Password Reset OTP",
+        "registration": "Registration OTP",
+        "login": "Login OTP",
+        "verification": "Verification OTP"
+      },
+      "content": "Your OTP code for {0} is: {1}\n\nThis code is valid for {2} minutes.\n\nPlease do not share this code with anyone.",
+      "purpose": {
+        "forgot_password": "password reset",
+        "registration": "account registration",
+        "login": "login",
+        "verification": "verification"
+      }
+    },
+    "verification": {
+      "subject": "Account Verification",
+      "content": "Please click the button below to verify your account:\n\n{0}\n\nIf you did not create this account, please ignore this email.",
+      "greeting": "Account Verification",
+      "description": "Thank you for registering! Please verify your account by clicking the button below.",
+      "button": {
+        "approve": "Verify Account",
+        "reject": "Reject"
+      },
+      "footer": "If you did not create this account, please ignore this email or click Reject.",
+      "success": "Your account has been verified successfully!",
+      "reject": {
+        "message": "Verification has been rejected."
+      },
+      "result": {
+        "success": {
+          "title": "Success!",
+          "subtitle": "Email verification completed"
+        },
+        "error": {
+          "title": "Failed!",
+          "subtitle": "An error occurred"
+        }
+      },
+      "copyright": "© 2026 Infinite World. All rights reserved."
+    },
+    "user": {
+      "locked": {
+        "subject": "Your account has been locked",
+        "title": "Account Locked",
+        "message": "Your account {0} has been locked {1} by {2}.",
+        "temporary": "temporarily until",
+        "permanent": "permanently",
+        "note": "If you have any questions, please contact the administrator."
+      },
+      "unlocked": {
+        "subject": "Your account has been unlocked",
+        "title": "Account Unlocked",
+        "message": "Your account {0} has been unlocked by {1}.",
+        "note": "You can now log in and use the system normally."
+      },
+      "auto": {
+        "unlocked": {
+          "subject": "Your account has been automatically unlocked",
+          "title": "Account Auto-Unlocked",
+          "message": "Your account {0} has been automatically unlocked by the system due to the lock period expiring.",
+          "note": "You can now log in and use the system normally."
+        }
+      },
+      "updated": {
+        "subject": "Your account information has been updated",
+        "title": "Account Updated",
+        "message": "Your account {0} information has been updated by {1}.",
+        "note": "If you did not make this change, please contact the administrator."
+      }
+    },
+    "account": {
+      "verification": {
+        "subject": "Account Registration Confirmation",
+        "title": "Account Registration Confirmation",
+        "greeting": "Hello {0}",
+        "message": "Thank you for registering an account with us. To complete the registration process, please confirm by clicking one of the two buttons below:",
+        "approve": "Approve",
+        "reject": "Reject",
+        "note": {
+          "title": "Note:",
+          "approve": "If you click \"Approve\", your account will be activated and you can log in.",
+          "reject": "If you click \"Reject\", the account will be deleted from the system."
+        },
+        "footer": {
+          "ignore": "If you did not register this account, please ignore this email."
+        }
+      }
+    },
+    "registration": {
+      "result": {
+        "success": "Success",
+        "error": "Error",
+        "approved": "Account has been successfully activated! You can log in now.",
+        "rejected": "Registration has been rejected. The account has been deleted from the system.",
+        "invalid": {
+          "token": "Token is invalid or has expired",
+          "action": "Invalid action"
+        },
+        "error": {
+          "message": "An error occurred while processing the request"
+        },
+        "home": "Go to homepage",
+        "close": {
+          "instruction": "You can close this page and return to the login screen."
+        }
+      }
+    },
+    "login": {
+      "alert": {
+        "subject": "New Login Detected",
+        "title": "New Login Detected",
+        "message": "Hello {0},\n\nWe detected a new login to your account:\n\nTime: {1}\nIP Address: {2}\nDevice: {3}\n\nIf this wasn't you, please change your password immediately.",
+        "note": "If you did not perform this login, please contact us immediately to protect your account."
+      }
+    },
+    "footer": {
+      "auto": "This email is sent automatically from the system. Please do not reply to this email."
+    }
+  },
+  "password": {
+    "reset": {
+      "verification": {
+        "subject": "Account Password Reset - Verification Required",
+        "content": "Your account password has been reset by an administrator. Please verify this action to activate your account.",
+        "action": "Please click one of the buttons below to verify this password reset:"
+      },
+      "default": {
+        "password": "Your temporary password"
+      },
+      "warning": {
+        "title": "Important Security Notice",
+        "content": "Please change this password immediately after logging in for security reasons. This temporary password should not be shared with anyone."
+      },
+      "result": {
+        "subtitle": "Your account has been activated successfully"
+      }
+    }
+  },
+  "auth": {
+    "login": {
+      "success": "Login successful",
+      "fail": "Invalid username or password"
+    },
+    "register": {
+      "success": "Registration successful. Please check your email to verify your account",
+      "verification": {
+        "sent": "Registration verification email sent successfully. Please check your email and click the confirmation link."
+      }
+    },
+    "logout": {
+      "success": "Logout successful"
+    },
+    "username": {
+      "exist": "The account already exists."
+    },
+    "email": {
+      "exist": "The email address already exists.",
+      "notfound": "Email not found",
+      "verification": {
+        "sent": "Email verification sent successfully"
+      },
+      "verified": "Email verified successfully"
+    },
+    "unactive": "The account has not been activated.",
+    "token": "Token invalid.",
+    "password": {
+      "invalid": "Wrong password.",
+      "reset": {
+        "success": "Password reset successfully"
+      }
+    },
+    "phone": {
+      "notfound": "Phone number not found"
+    },
+    "user": {
+      "notfound": "User not found"
+    },
+    "otp": {
+      "sent": "OTP has been sent successfully",
+      "expired": "OTP has expired",
+      "invalid": "Invalid OTP",
+      "generate": {
+        "fail": "Failed to generate OTP"
+      }
+    }
+  },
+  "role": {
+    "name": {
+      "exist": "Role name already exists"
+    },
+    "notfound": "Role not found",
+    "create": {
+      "success": "Role created successfully"
+    },
+    "update": {
+      "success": "Role updated successfully"
+    },
+    "delete": {
+      "success": "Role deleted successfully"
+    },
+    "assign": {
+      "success": "Role assigned to user successfully"
+    },
+    "remove": {
+      "success": "Role removed from user successfully"
+    }
+  },
+  "otp": {
+    "registration": {
+      "sent": "Registration OTP sent successfully"
+    },
+    "login": {
+      "sent": "Login OTP sent successfully"
+    },
+    "phone": {
+      "verification": {
+        "sent": "Phone verification OTP sent successfully"
+      }
+    },
+    "email": {
+      "verification": {
+        "sent": "Email verification OTP sent successfully"
+      }
+    },
+    "verification": {
+      "success": "Verification successful",
+      "fail": "Verification failed"
+    },
+    "sent": {
+      "email": "OTP has been sent via email"
+    }
+  },
+  "i18n": {
+    "properties": {
+      "file": {
+        "not": {
+          "found": "Properties file not found: %s"
+        }
+      },
+      "load": {
+        "error": "Error loading properties"
+      },
+      "loaded": {
+        "count": "Loaded %d messages to database for language: %s",
+        "with": {
+          "cache": "Loaded messages to database and Redis cache for language: %s",
+          "cache.count": "Loaded %d messages to database and Redis cache for language: %s"
+        },
+        "cache": {
+          "failed": "Loaded to database but cache failed: %s"
+        }
+      }
+    },
+    "json": {
+      "file": {
+        "not": {
+          "found": "JSON file not found: %s"
+        }
+      },
+      "load": {
+        "error": "Error loading JSON",
+        "success": "JSON loaded successfully"
+      },
+      "loaded": {
+        "count": "Loaded %d messages from JSON to database for language: %s",
+        "to": {
+          "db": "Loaded %d messages from JSON to database",
+          "redis": "Loaded %d messages from JSON to Redis",
+          "both": "Loaded %d messages to database and %d to Redis"
+        }
+      },
+      "sync": {
+        "success": "JSON sync successful",
+        "result": "Synced: %d inserted, %d updated, %d unchanged"
+      }
+    },
+    "table": {
+      "created": "Table i18n_{0} created successfully",
+      "create": {
+        "error": "Error creating table: {0}"
+      }
+    },
+    "messages": {
+      "deleted": {
+        "db": "Deleted {0} messages from database",
+        "cache": "Deleted {0} messages from cache",
+        "both": "Deleted {0} messages from database and {1} messages from cache for language '{2}'",
+        "multi": "Total deleted {0} messages from database and {1} messages from cache. Details: {2}",
+        "db.multi": "Total deleted {0} messages from database. Details: {1}",
+        "cache.multi": "Total deleted {0} messages from cache. Details: {1}"
+      }
+    },
+    "cache": {
+      "refreshed": {
+        "count": "Cache refreshed successfully, total {0} messages"
+      },
+      "loaded": {
+        "count": "Cached {0} messages from database for language: {1}"
+      },
+      "cleared": {
+        "all": "Cleared all cache, total {0} keys",
+        "language": "Cleared cache for language '{0}', total {1} keys",
+        "languages": "Cleared cache for {0} languages, total {1} keys. Details: {2}"
+      }
+    }
+  },
+  "user": {
+    "lock": {
+      "temporary": "User locked temporarily until",
+      "permanent": "User locked permanently"
+    },
+    "unlock": {
+      "success": "User unlocked successfully"
+    },
+    "updated": {
+      "success": "User updated successfully"
+    },
+    "avatar": {
+      "upload": {
+        "success": "Avatar uploaded successfully"
+      }
+    }
+  },
+  "notification": {
+    "welcome": {
+      "title": "Welcome!",
+      "message": "Account has been successfully activated"
+    },
+    "request": {
+      "accepted": "Notification request accepted"
+    },
+    "inbox": {
+      "retrieved": "Inbox retrieved successfully"
+    },
+    "unread": {
+      "count": "Unread count retrieved"
+    },
+    "mark": {
+      "read": {
+        "success": "Notification marked as read"
+      },
+      "all": {
+        "read": {
+          "success": "All notifications marked as read"
+        }
+      }
+    },
+    "delete": {
+      "success": "Notification deleted successfully"
+    },
+    "claim": {
+      "success": "Reward claimed successfully",
+      "already": "Reward already claimed",
+      "no": {
+        "reward": "No reward available"
+      },
+      "expired": "Notification has expired"
+    },
+    "user": {
+      "invalid": "Invalid authenticated user"
+    },
+    "not": {
+      "found": "Notification not found"
+    },
+    "admin": {
+      "created": "Notification created successfully",
+      "list": "Notifications retrieved successfully",
+      "detail": "Notification detail retrieved",
+      "cancel": {
+        "success": "Notification cancelled successfully",
+        "delivered": "Delivered notification cannot be cancelled"
+      },
+      "retry": {
+        "success": "Notification retry initiated",
+        "delivered": "Delivered notification cannot be retried"
+      },
+      "delivery": {
+        "summary": "Delivery summary retrieved"
+      }
+    },
+    "email": {
+      "delivery": {
+        "list": "Email deliveries retrieved successfully",
+        "detail": "Email delivery detail retrieved",
+        "retry": {
+          "success": "Email delivery retry initiated"
+        },
+        "not": {
+          "found": "Email delivery not found"
+        }
+      }
+    }
+  },
+  "file": {
+    "empty": "File is empty",
+    "invalid": {
+      "type": "Invalid file type: .{0}. Allowed types: {1}",
+      "resource": {
+        "type": "Invalid resource type"
+      }
+    },
+    "size": {
+      "exceeded": "File size exceeds maximum limit",
+      "exceeded.category": "File size exceeds maximum limit of {0}"
+    },
+    "upload": {
+      "success": "File uploaded successfully",
+      "failed": "File upload failed"
+    },
+    "delete": {
+      "success": "File deleted successfully",
+      "failed": "File deletion failed"
+    },
+    "category": {
+      "images": {
+        "only": "Only image files are allowed (jpg, jpeg, png, gif, bmp, webp, svg, ico)"
+      },
+      "videos": {
+        "only": "Only video files are allowed (mp4, avi, mov, wmv, flv, mkv, webm)"
+      },
+      "documents": {
+        "only": "Only document files are allowed (pdf, doc, docx, xls, xlsx, ppt, pptx, txt, csv)"
+      },
+      "archives": {
+        "only": "Only archive files are allowed (zip, rar, 7z)"
+      }
+    },
+    "url": {
+      "retrieved": "File URL retrieved successfully",
+      "not": {
+        "found": "File URL not found"
+      },
+      "multiple": {
+        "found": "Multiple files found, please provide more path filters"
+      }
+    },
+    "folder": {
+      "children": {
+        "success": "Folder children retrieved successfully"
+      },
+      "not": {
+        "found": "Folder not found"
+      }
+    },
+    "tree": {
+      "search": {
+        "success": "Tree search completed successfully"
+      }
+    },
+    "metadata": {
+      "saved": "File metadata saved successfully",
+      "not": {
+        "found": "File metadata not found"
+      }
+    },
+    "name": {
+      "duplicate": "File name already exists in this location"
+    }
+  },
+  "grpc": {
+    "file": {
+      "url": {
+        "retrieved": "File URL retrieved successfully"
+      },
+      "info": {
+        "retrieved": "File info retrieved successfully"
+      },
+      "path": {
+        "invalid": "Invalid file path format. Expected: category/filename"
+      },
+      "list": {
+        "not": {
+          "implemented": "List files not implemented"
+        }
+      }
+    },
+    "server": {
+      "error": "Server error occurred"
+    },
+    "request": {
+      "invalid": "Invalid request"
+    },
+    "resource": {
+      "not": {
+        "found": "Resource not found"
+      }
+    },
+    "permission": {
+      "denied": "Permission denied"
+    },
+    "service": {
+      "unavailable": "Service temporarily unavailable"
+    },
+    "operation": {
+      "success": "Operation completed successfully",
+      "failed": "Operation failed"
+    }
+  }
+}

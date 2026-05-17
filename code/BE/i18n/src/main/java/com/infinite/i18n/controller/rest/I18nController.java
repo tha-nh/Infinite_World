@@ -103,6 +103,8 @@ public class I18nController {
         return i18nService.clearCacheByLanguages(languages);
     }
 
+    // ==================== PROPERTIES FILE ENDPOINTS (Legacy) ====================
+
     @Operation(summary = "Load properties vào database", description = "Load messages từ file properties vào database (không cache)")
     @PostMapping("/load-properties-to-db")
     public ApiResponse<Object> loadPropertiesToDatabase(
@@ -117,6 +119,38 @@ public class I18nController {
         return propertiesLoaderService.loadPropertiesToDatabaseAndCache(language);
     }
 
+    // ==================== JSON FILE ENDPOINTS (New) ====================
+
+    @Operation(summary = "Load JSON vào database", description = "Load messages từ file JSON vào database (không cache)")
+    @PostMapping("/load-json-to-db")
+    public ApiResponse<Object> loadJsonToDatabase(
+            @RequestParam String language) {
+        return propertiesLoaderService.loadJsonToDatabase(language);
+    }
+
+    @Operation(summary = "Load JSON vào database và cache", description = "Load messages từ file JSON vào database và Redis cache")
+    @PostMapping("/load-json")
+    public ApiResponse<Object> loadJson(
+            @RequestParam String language) {
+        return propertiesLoaderService.loadJsonToDatabaseAndCache(language);
+    }
+
+    @Operation(summary = "Load JSON vào Redis", description = "Load messages từ file JSON vào Redis cache (không database)")
+    @PostMapping("/load-json-to-redis")
+    public ApiResponse<Object> loadJsonToRedis(
+            @RequestParam String language) {
+        return propertiesLoaderService.loadJsonToRedis(language);
+    }
+
+    @Operation(summary = "Sync JSON vào database", description = "Đồng bộ messages từ JSON vào database (insert mới, update khác biệt)")
+    @PostMapping("/sync-json")
+    public ApiResponse<Object> syncJsonToDatabase(
+            @RequestParam String language) {
+        return propertiesLoaderService.syncJsonToDatabase(language);
+    }
+
+    // ==================== DATABASE TO CACHE ====================
+
     @Operation(summary = "Load database vào cache", description = "Load tất cả messages từ database vào Redis cache")
     @PostMapping("/load-db-to-cache")
     public ApiResponse<Object> loadDatabaseToCache(
@@ -129,6 +163,8 @@ public class I18nController {
     public ApiResponse<Object> refreshCache() {
         return i18nService.refreshCache();
     }
+
+    // ==================== TABLE MANAGEMENT ====================
 
     @Operation(summary = "Tạo bảng i18n", description = "Tạo bảng i18n_{language} trong database")
     @PostMapping("/create-table")

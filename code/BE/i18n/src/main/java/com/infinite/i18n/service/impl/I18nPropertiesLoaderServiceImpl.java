@@ -1,6 +1,8 @@
 package com.infinite.i18n.service.impl;
 
 import com.infinite.common.dto.response.ApiResponse;
+import com.infinite.common.service.JsonMessageLoaderService;
+import com.infinite.common.service.JsonMessageSource;
 import com.infinite.common.util.MessageUtils;
 import com.infinite.i18n.model.I18nMessage;
 import com.infinite.i18n.service.I18nService;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.util.Map;
 import java.util.Properties;
 
 @Service
@@ -24,9 +27,13 @@ import java.util.Properties;
 public class I18nPropertiesLoaderServiceImpl implements I18nPropertiesLoaderService {
 
     final I18nService i18nService;
+    final JsonMessageSource jsonMessageSource;
+    final JsonMessageLoaderService jsonMessageLoaderService;
 
     @Value("${i18n.properties-file:/i18n/messages}")
     private String propertiesFilePath;
+
+    // ==================== LEGACY METHODS - Properties Files ====================
 
     @Override
     public ApiResponse<Object> loadPropertiesToDatabase(String language) {
@@ -167,6 +174,90 @@ public class I18nPropertiesLoaderServiceImpl implements I18nPropertiesLoaderServ
             return ApiResponse.builder()
                     .code(1001)
                     .message(MessageUtils.getMessage("i18n.properties.load.error") + ": " + e.getMessage())
+                    .build();
+        }
+    }
+
+    // ==================== NEW METHODS - JSON Files ====================
+
+    @Override
+    public ApiResponse<Object> loadJsonToDatabase(String language) {
+        try {
+            int count = jsonMessageLoaderService.loadJsonToDatabase(language);
+            
+            return ApiResponse.builder()
+                    .code(1000)
+                    .message(MessageUtils.getMessage("SUCCESS"))
+                    .result(String.format("Loaded %d messages from JSON to database for language: %s", count, language))
+                    .build();
+                    
+        } catch (Exception e) {
+            log.error("Error loading JSON to database for language {}: ", language, e);
+            return ApiResponse.builder()
+                    .code(1001)
+                    .message("Error loading JSON to database: " + e.getMessage())
+                    .build();
+        }
+    }
+
+    @Override
+    public ApiResponse<Object> loadJsonToDatabaseAndCache(String language) {
+        try {
+            Map<String, Integer> result = jsonMessageLoaderService.loadJsonToDatabaseAndCache(language);
+            
+            return ApiResponse.builder()
+                    .code(1000)
+                    .message(MessageUtils.getMessage("SUCCESS"))
+                    .result(String.format("Loaded %d messages to database and %d to Redis for language: %s", 
+                        result.get("database"), result.get("redis"), language))
+                    .build();
+                    
+        } catch (Exception e) {
+            log.error("Error loading JSON to database and cache for language {}: ", language, e);
+            return ApiResponse.builder()
+                    .code(1001)
+                    .message("Error loading JSON to database and cache: " + e.getMessage())
+                    .build();
+        }
+    }
+
+    @Override
+    public ApiResponse<Object> loadJsonToRedis(String language) {
+        try {
+            int count = jsonMessageLoaderService.loadJsonToRedis(language);
+            
+            return ApiResponse.builder()
+                    .code(1000)
+                    .message(MessageUtils.getMessage("SUCCESS"))
+                    .result(String.format("Loaded %d messages from JSON to Redis for language: %s", count, language))
+                    .build();
+                    
+        } catch (Exception e) {
+            log.error("Error loading JSON to Redis for language {}: ", language, e);
+            return ApiResponse.builder()
+                    .code(1001)
+                    .message("Error loading JSON to Redis: " + e.getMessage())
+                    .build();
+        }
+    }
+
+    @Override
+    public ApiResponse<Object> syncJsonToDatabase(String language) {
+        try {
+            Map<String, Integer> result = jsonMessageLoaderService.syncJsonToDatabase(language);
+            
+            return ApiResponse.builder()
+                    .code(1000)
+                    .message(MessageUtils.getMessage("SUCCESS"))
+                    .result(String.format("Sync completed for language %s: %d inserted, %d updated, %d unchanged", 
+                        language, result.get("inserted"), result.get("updated"), result.get("unchanged")))
+                    .build();
+                    
+        } catch (Exception e) {
+            log.error("Error syncing JSON to database for language {}: ", language, e);
+            return ApiResponse.builder()
+                    .code(1001)
+                    .message("Error syncing JSON to database: " + e.getMessage())
                     .build();
         }
     }
